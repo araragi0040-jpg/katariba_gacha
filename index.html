@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>語り場ガチャ</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      background: linear-gradient(180deg, #fff7ed 0%, #ffffff 45%, #eff6ff 100%);
+      color: #1f2937;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 40px;
+    }
+    .sub {
+      margin-top: 8px;
+      color: #6b7280;
+    }
+    .status-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: #fff;
+      border-radius: 16px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      padding: 20px;
+    }
+    .machine-area {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+    }
+    .machine-box {
+      min-height: 520px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, #fee2e2 0%, #fff1f2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .machine {
+      width: 290px;
+      height: 290px;
+      border-radius: 50%;
+      border: 14px solid #f87171;
+      background: #fff;
+      position: relative;
+      box-shadow: inset 0 0 24px rgba(0,0,0,0.08);
+      transition: transform 1s linear;
+      overflow: hidden;
+    }
+    .machine.spinning {
+      animation: spin 1s linear infinite;
+    }
+    .dots {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 52px;
+      opacity: 0.7;
+    }
+    .dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #fdba74;
+      justify-self: center;
+      align-self: center;
+    }
+    .handle-base {
+      position: absolute;
+      right: -30px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 84px;
+      background: #1f2937;
+      border-radius: 0 16px 16px 0;
+    }
+    .handle-ball {
+      position: absolute;
+      right: -92px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 64px;
+      height: 48px;
+      background: #111827;
+      border-radius: 999px;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    button {
+      margin-top: 26px;
+      border: none;
+      border-radius: 18px;
+      padding: 16px 28px;
+      font-size: 16px;
+      font-weight: 700;
+      background: #111827;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .note {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #6b7280;
+      text-align: center;
+    }
+    .result-box {
+      min-height: 520px;
+      border-radius: 28px;
+      background: #f8fafc;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .result-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .result-stage {
+      flex: 1;
+      border: 1px dashed #cbd5e1;
+      border-radius: 24px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      min-height: 340px;
+    }
+    .placeholder {
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .capsule {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #7dd3fc 0%, #f9a8d4 100%);
+      animation: bounce 0.8s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .figure-card {
+      text-align: center;
+      width: 100%;
+      animation: pop 0.4s ease;
+    }
+    @keyframes pop {
+      from { transform: scale(0.8) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .figure-card img {
+      width: 220px;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 24px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .N { background: #e5e7eb; color: #374151; }
+    .R { background: #dbeafe; color: #1d4ed8; }
+    .SR { background: #ede9fe; color: #6d28d9; }
+    .SSR { background: #fef3c7; color: #b45309; }
+    .figure-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 12px;
+    }
+    .figure-text {
+      color: #6b7280;
+      margin-top: 8px;
+    }
+    .count {
+      margin-top: 8px;
+      font-weight: 700;
+    }
+    .progress-wrap {
+      margin-top: 16px;
+      background: #fff;
+      padding: 14px;
+      border-radius: 18px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .bar {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #fb923c 0%, #60a5fa 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .tab-btn {
+      border: none;
+      background: #f1f5f9;
+      color: #334155;
+      padding: 12px;
+      border-radius: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 0;
+    }
+    .tab-btn.active {
+      background: #111827;
+      color: #fff;
+    }
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+    }
+    .thumb {
+      width: 78px;
+      height: 78px;
+      border-radius: 18px;
+      object-fit: cover;
+      background: #f3f4f6;
+    }
+    .thumb.locked {
+      filter: grayscale(1);
+      opacity: 0.35;
+    }
+    .item-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .item-name {
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .item-text {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .item-count {
+      text-align: right;
+      font-weight: 700;
+      min-width: 48px;
+    }
+    .simple-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .simple-box {
+      background: #f8fafc;
+      border-radius: 18px;
+      padding: 14px;
+      font-size: 14px;
+      color: #475569;
+    }
+    @media (max-width: 980px) {
+      .grid, .machine-area {
+        grid-template-columns: 1fr;
+      }
+      .simple-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 16px; }
+      h1 { font-size: 32px; }
+      .machine { width: 240px; height: 240px; }
+      .figure-card img { width: 180px; height: 180px; }
+      .simple-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>語り場ガチャ</h1>
+        <div class="sub">GitHub Pages向けの超簡易版。画像差し替えだけで試作を進められます。</div>
+      </div>
+      <div class="status-row">
+        <div class="pill">コイン: ∞</div>
+        <div class="pill">総回転数: <span id="spinCount">0</span></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="machine-area">
+          <div class="machine-box">
+            <div id="machine" class="machine">
+              <div class="dots">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+              </div>
+              <div class="handle-base"></div>
+              <div class="handle-ball"></div>
+            </div>
+            <button id="spinBtn">ガチャを回す</button>
+            <div class="note">最初は無限に回せる仕様。後からコイン制に変更可能です。</div>
+          </div>
+
+          <div class="result-box">
+            <div>
+              <div class="result-title">排出結果</div>
+              <div id="resultStage" class="result-stage">
+                <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
+              </div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-top">
+                <span>コレクション達成率</span>
+                <span id="collectionText">0/0</span>
+              </div>
+              <div class="bar">
+                <div id="progressBar" class="bar-inner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">コレクション</div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="collection">図鑑</button>
+          <button class="tab-btn" data-tab="rates">レア度 / 排出率</button>
+        </div>
+        <div id="tabContent"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+      <div class="section-title">この簡易版に入れている要素</div>
+      <div class="simple-grid">
+        <div class="simple-box">実際に回しているように見えるガチャUI</div>
+        <div class="simple-box">No.順に並ぶコレクション図鑑</div>
+        <div class="simple-box">重複排出と所持数カウント</div>
+        <div class="simple-box">レア度・排出率設定</div>
+        <div class="simple-box">無限ガチャ仕様</div>
+        <div class="simple-box">画像差し替えだけで運用しやすい構成</div>
+        <div class="simple-box">未獲得は伏せ表示</div>
+        <div class="simple-box">GitHub Pagesにそのまま置きやすい単一HTML</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FIGURES = [
+      {
+        id: 1,
+        no: 'No.1',
+        name: '語り場オーナーA',
+        rarity: 'N',
+        dropRate: 40,
+        concept: 'やさしく迎えるファシリテーター',
+        image: 'images/no1.png'
+      },
+      {
+        id: 2,
+        no: 'No.2',
+        name: '語り場オーナーB',
+        rarity: 'R',
+        dropRate: 28,
+        concept: '熱量高めのアイデアメーカー',
+        image: 'images/no2.png'
+      },
+      {
+        id: 3,
+        no: 'No.3',
+        name: '語り場オーナーC',
+        rarity: 'R',
+        dropRate: 18,
+        concept: '深掘り型の聞き手',
+        image: 'images/no3.png'
+      },
+      {
+        id: 4,
+        no: 'No.4',
+        name: '語り場オーナーD',
+        rarity: 'SR',
+        dropRate: 10,
+        concept: '場をつなぐストーリーテラー',
+        image: 'images/no4.png'
+      },
+      {
+        id: 5,
+        no: 'No.5',
+        name: '語り場オーナーE',
+        rarity: 'SSR',
+        dropRate: 4,
+        concept: '伝説の語り場マスター',
+        image: 'images/no5.png'
+      }
+    ];
+
+    const STORAGE_KEY = 'katariba_gacha_inventory_v1';
+    const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v1';
+
+    let inventory = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    let totalSpins = Number(localStorage.getItem(STORAGE_SPIN_KEY) || 0);
+    let activeTab = 'collection';
+    let spinning = false;
+
+    const spinBtn = document.getElementById('spinBtn');
+    const machine = document.getElementById('machine');
+    const resultStage = document.getElementById('resultStage');
+    const tabContent = document.getElementById('tabContent');
+    const spinCount = document.getElementById('spinCount');
+    const collectionText = document.getElementById('collectionText');
+    const progressBar = document.getElementById('progressBar');
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+      localStorage.setItem(STORAGE_SPIN_KEY, String(totalSpins));
+    }
+
+    function weightedDraw(pool) {
+      const total = pool.reduce((sum, item) => sum + item.dropRate, 0);
+      const rand = Math.random() * total;
+      let cumulative = 0;
+      for (const item of pool) {
+        cumulative += item.dropRate;
+        if (rand <= cumulative) return item;
+      }
+      return pool[pool.length - 1];
+    }
+
+    function getOwnedCount() {
+      return FIGURES.filter(f => (inventory[f.id] || 0) > 0).length;
+    }
+
+    function updateProgress() {
+      const owned = getOwnedCount();
+      const total = FIGURES.length;
+      const rate = total === 0 ? 0 : Math.round((owned / total) * 100);
+      collectionText.textContent = `${owned}/${total}`;
+      progressBar.style.width = `${rate}%`;
+      spinCount.textContent = totalSpins;
+    }
+
+    function renderCollectionTab() {
+      const html = FIGURES.map(figure => {
+        const count = inventory[figure.id] || 0;
+        const owned = count > 0;
+        const imgClass = owned ? 'thumb' : 'thumb locked';
+        const imgSrc = owned ? figure.image : 'images/locked.png';
+        const name = owned ? figure.name : '未獲得';
+        const text = owned ? figure.concept : 'ガチャで引くと公開されます';
+        return `
+          <div class="item">
+            <img class="${imgClass}" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/120x120?text=?'">
+            <div class="item-main">
+              <div class="item-row">
+                <div><strong>${figure.no}</strong></div>
+                <span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span>
+              </div>
+              <div class="item-name">${name}</div>
+              <div class="item-text">${text}</div>
+            </div>
+            <div class="item-count">x${count}</div>
+          </div>
+        `;
+      }).join('');
+      tabContent.innerHTML = `<div class="list">${html}</div>`;
+    }
+
+    function renderRatesTab() {
+      const html = FIGURES.map(figure => `
+        <div class="item">
+          <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
+          <div class="item-main">
+            <div class="item-row">
+              <div><strong>${figure.no}</strong></div>
+              <span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span>
+            </div>
+            <div class="item-name">${figure.name}</div>
+            <div class="item-text">${figure.concept}</div>
+          </div>
+          <div class="item-count">${figure.dropRate}%</div>
+        </div>
+      `).join('');
+      tabContent.innerHTML = `<div class="list">${html}</div>`;
+    }
+
+    function renderTab() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === activeTab);
+      });
+      if (activeTab === 'collection') {
+        renderCollectionTab();
+      } else {
+        renderRatesTab();
+      }
+      updateProgress();
+    }
+
+    function renderResult(figure) {
+      const count = inventory[figure.id] || 0;
+      resultStage.innerHTML = `
+        <div class="figure-card">
+          <img src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figure.no)}'">
+          <div class="badge ${figure.rarity}">${figure.rarity}</div>
+          <div class="figure-name">${figure.no} ${figure.name}</div>
+          <div class="figure-text">${figure.concept}</div>
+          <div class="count">所持数: ${count}</div>
+        </div>
+      `;
+    }
+
+    async function spinGacha() {
+      if (spinning) return;
+      spinning = true;
+      spinBtn.disabled = true;
+      spinBtn.textContent = 'ガチャを回しています...';
+      machine.classList.add('spinning');
+      resultStage.innerHTML = '<div class="capsule"></div>';
+
+      await new Promise(resolve => setTimeout(resolve, 1400));
+
+      const result = weightedDraw(FIGURES);
+      inventory[result.id] = (inventory[result.id] || 0) + 1;
+      totalSpins += 1;
+      saveState();
+
+      machine.classList.remove('spinning');
+      renderResult(result);
+      renderTab();
+
+      spinBtn.disabled = false;
+      spinBtn.textContent = 'ガチャを回す';
+      spinning = false;
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab;
+        renderTab();
+      });
+    });
+
+    spinBtn.addEventListener('click', spinGacha);
+
+    renderTab();
+  </script>
+</body>
+</html>
