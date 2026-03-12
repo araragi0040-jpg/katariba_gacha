@@ -6,16 +6,34 @@
   <title>語り場ガチャ</title>
   <style>
     * { box-sizing: border-box; }
+    :root {
+      --bg1: #fff7ed;
+      --bg2: #ffffff;
+      --bg3: #eff6ff;
+      --text: #1f2937;
+      --muted: #64748b;
+      --card: rgba(255,255,255,0.82);
+      --line: rgba(148,163,184,0.22);
+      --shadow: 0 18px 45px rgba(15,23,42,0.10);
+      --shadow-soft: 0 10px 25px rgba(15,23,42,0.08);
+      --accent: #111827;
+      --accent-2: #fb923c;
+      --blue: #60a5fa;
+    }
     body {
       margin: 0;
       font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-      background: linear-gradient(180deg, #fff7ed 0%, #ffffff 45%, #eff6ff 100%);
-      color: #1f2937;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(251,191,36,0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(96,165,250,0.14), transparent 26%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 42%, var(--bg3) 100%);
+      min-height: 100vh;
     }
     .wrap {
-      max-width: 1200px;
+      max-width: 1220px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 22px;
     }
     .top {
       display: flex;
@@ -23,15 +41,17 @@
       align-items: flex-end;
       gap: 16px;
       flex-wrap: wrap;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     h1 {
       margin: 0;
       font-size: 40px;
+      letter-spacing: 0.02em;
     }
     .sub {
       margin-top: 8px;
-      color: #6b7280;
+      color: var(--muted);
+      line-height: 1.6;
     }
     .status-row {
       display: flex;
@@ -39,122 +59,243 @@
       flex-wrap: wrap;
     }
     .pill {
-      background: #fff;
-      border-radius: 16px;
+      background: rgba(255,255,255,0.86);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 18px;
       padding: 12px 16px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-soft);
       font-weight: 700;
     }
+    .nav-tabs {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 8px;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 22px;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 18px;
+    }
+    .nav-btn {
+      border: none;
+      background: transparent;
+      color: #334155;
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+    .nav-btn.active {
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(15,23,42,0.22);
+    }
+    .page { display: none; }
+    .page.active { display: block; }
     .grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 20px;
+      grid-template-columns: 1.18fr 0.82fr;
+      gap: 22px;
     }
     .card {
-      background: #fff;
-      border-radius: 28px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      padding: 20px;
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+      padding: 22px;
     }
-    .machine-area {
+    .machine-layout {
       display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 16px;
+      grid-template-columns: 1fr 320px;
+      gap: 18px;
+      align-items: stretch;
     }
     .machine-box {
-      min-height: 520px;
-      border-radius: 28px;
-      background: linear-gradient(180deg, #fee2e2 0%, #fff1f2 100%);
+      min-height: 560px;
+      border-radius: 30px;
+      padding: 28px;
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
-      padding: 24px;
-    }
-    .machine {
-      width: 290px;
-      height: 290px;
-      border-radius: 50%;
-      border: 14px solid #f87171;
-      background: #fff;
+      align-items: center;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(255,255,255,0.85), rgba(255,255,255,0) 35%),
+        linear-gradient(180deg, #fecaca 0%, #fff1f2 45%, #fff7ed 100%);
+      border: 1px solid rgba(255,255,255,0.7);
       position: relative;
-      box-shadow: inset 0 0 24px rgba(0,0,0,0.08);
-      transition: transform 1s linear;
       overflow: hidden;
     }
-    .machine.spinning {
-      animation: spin 1s linear infinite;
+    .machine-box::before {
+      content: "";
+      position: absolute;
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.28);
+      filter: blur(8px);
+      top: -110px;
+      left: -100px;
     }
-    .dots {
+    .machine-stage {
+      position: relative;
+      width: 330px;
+      height: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    .machine-body {
+      position: absolute;
+      inset: 0;
+      border-radius: 42px 42px 36px 36px;
+      background: linear-gradient(180deg, #ef4444 0%, #dc2626 65%, #b91c1c 100%);
+      box-shadow: inset 0 8px 16px rgba(255,255,255,0.22), 0 20px 35px rgba(185,28,28,0.18);
+    }
+    .machine-top {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 36%, rgba(255,255,255,0.22) 70%, rgba(255,255,255,0.08) 100%);
+      border: 12px solid rgba(255,255,255,0.75);
+      overflow: hidden;
+      backdrop-filter: blur(4px);
+      transition: transform 1s linear;
+    }
+    .machine-top.spinning { animation: spin 1s linear infinite; }
+    .capsule-dots {
       position: absolute;
       inset: 0;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
-      padding: 52px;
-      opacity: 0.7;
+      padding: 44px;
+      opacity: 0.82;
     }
     .dot {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      background: #fdba74;
       justify-self: center;
       align-self: center;
+      box-shadow: inset 0 3px 6px rgba(255,255,255,0.4);
     }
-    .handle-base {
+    .dot:nth-child(4n+1) { background: #fdba74; }
+    .dot:nth-child(4n+2) { background: #86efac; }
+    .dot:nth-child(4n+3) { background: #93c5fd; }
+    .dot:nth-child(4n) { background: #f9a8d4; }
+    .machine-slot {
       position: absolute;
-      right: -30px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 28px;
-      height: 84px;
-      background: #1f2937;
-      border-radius: 0 16px 16px 0;
-    }
-    .handle-ball {
-      position: absolute;
-      right: -92px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 64px;
-      height: 48px;
-      background: #111827;
+      bottom: 106px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 132px;
+      height: 20px;
       border-radius: 999px;
+      background: #7f1d1d;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.35);
+    }
+    .machine-tray {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      height: 72px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+      border: 5px solid #cbd5e1;
+      box-shadow: inset 0 4px 10px rgba(255,255,255,0.65);
+    }
+    .handle-wrap {
+      position: absolute;
+      right: -18px;
+      top: 176px;
+      width: 100px;
+      height: 100px;
+      z-index: 2;
+    }
+    .handle-rod {
+      position: absolute;
+      right: 40px;
+      top: 42px;
+      width: 54px;
+      height: 12px;
+      border-radius: 999px;
+      background: #1f2937;
+      transform-origin: left center;
+      transition: transform 0.5s ease;
+    }
+    .handle-wrap.spinning .handle-rod { transform: rotate(140deg); }
+    .handle-knob {
+      position: absolute;
+      right: 0;
+      top: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #1f2937 0%, #0f172a 100%);
+      box-shadow: 0 8px 16px rgba(15,23,42,0.2);
+    }
+    .shine {
+      position: absolute;
+      inset: auto 46px 94px 46px;
+      height: 110px;
+      border-radius: 0 0 26px 26px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+      pointer-events: none;
     }
     @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      from { transform: translateX(-50%) rotate(0deg); }
+      to { transform: translateX(-50%) rotate(360deg); }
     }
-    button {
-      margin-top: 26px;
+    .spin-btn {
+      margin-top: 24px;
       border: none;
       border-radius: 18px;
-      padding: 16px 28px;
+      padding: 16px 30px;
       font-size: 16px;
       font-weight: 700;
-      background: #111827;
       color: #fff;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
       cursor: pointer;
+      box-shadow: 0 14px 28px rgba(15,23,42,0.22);
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+      z-index: 1;
     }
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .spin-btn:hover { transform: translateY(-1px); }
+    .spin-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .note {
       margin-top: 14px;
       font-size: 13px;
-      color: #6b7280;
+      color: var(--muted);
       text-align: center;
+      z-index: 1;
     }
     .result-box {
-      min-height: 520px;
+      min-height: 560px;
       border-radius: 28px;
-      background: #f8fafc;
       padding: 16px;
+      background: linear-gradient(180deg, rgba(248,250,252,0.96), rgba(255,255,255,0.96));
+      border: 1px solid rgba(226,232,240,0.9);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 14px;
     }
     .result-title {
       font-size: 20px;
@@ -163,26 +304,44 @@
     }
     .result-stage {
       flex: 1;
+      min-height: 360px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at top, rgba(251,191,36,0.12), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
       border: 1px dashed #cbd5e1;
-      border-radius: 24px;
-      background: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
-      min-height: 340px;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+    .result-stage::before {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      filter: blur(10px);
+      top: -80px;
+      right: -40px;
     }
     .placeholder {
       color: #94a3b8;
       text-align: center;
       line-height: 1.8;
+      z-index: 1;
     }
     .capsule {
       width: 150px;
       height: 150px;
       border-radius: 50%;
       background: linear-gradient(180deg, #7dd3fc 0%, #f9a8d4 100%);
+      box-shadow: 0 18px 30px rgba(59,130,246,0.16);
       animation: bounce 0.8s infinite;
+      z-index: 1;
     }
     @keyframes bounce {
       0%, 100% { transform: translateY(0); }
@@ -191,23 +350,26 @@
     .figure-card {
       text-align: center;
       width: 100%;
-      animation: pop 0.4s ease;
+      animation: pop 0.45s ease;
+      position: relative;
+      z-index: 1;
     }
     @keyframes pop {
-      from { transform: scale(0.8) translateY(20px); opacity: 0; }
+      from { transform: scale(0.84) translateY(20px); opacity: 0; }
       to { transform: scale(1) translateY(0); opacity: 1; }
     }
     .figure-card img {
-      width: 220px;
-      height: 220px;
+      width: 230px;
+      height: 230px;
       object-fit: cover;
-      border-radius: 24px;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+      border-radius: 26px;
+      box-shadow: 0 16px 36px rgba(15,23,42,0.16);
+      background: #fff;
     }
     .badge {
       display: inline-block;
       margin-top: 12px;
-      padding: 6px 12px;
+      padding: 7px 14px;
       border-radius: 999px;
       font-weight: 700;
       font-size: 13px;
@@ -222,8 +384,9 @@
       margin-top: 12px;
     }
     .figure-text {
-      color: #6b7280;
+      color: var(--muted);
       margin-top: 8px;
+      line-height: 1.6;
     }
     .count {
       margin-top: 8px;
@@ -231,10 +394,11 @@
     }
     .progress-wrap {
       margin-top: 16px;
-      background: #fff;
+      background: rgba(255,255,255,0.95);
       padding: 14px;
-      border-radius: 18px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(226,232,240,0.9);
     }
     .progress-top {
       display: flex;
@@ -255,29 +419,39 @@
       width: 0%;
       transition: width 0.3s ease;
     }
-    .section-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 14px;
+    .collection-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
     }
-    .tabs {
-      display: grid;
+    .collection-sub {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .small-tabs {
+      display: inline-grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-bottom: 14px;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(226,232,240,0.9);
+      padding: 8px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
     }
     .tab-btn {
       border: none;
-      background: #f1f5f9;
+      background: transparent;
       color: #334155;
-      padding: 12px;
-      border-radius: 16px;
+      padding: 10px 14px;
+      border-radius: 14px;
       font-weight: 700;
       cursor: pointer;
-      margin-top: 0;
     }
     .tab-btn.active {
-      background: #111827;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
       color: #fff;
     }
     .list {
@@ -287,28 +461,23 @@
     .item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 20px;
-      padding: 12px;
-      background: #fff;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+      gap: 14px;
+      padding: 14px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(226,232,240,0.9);
+      box-shadow: var(--shadow-soft);
     }
     .thumb {
-      width: 78px;
-      height: 78px;
-      border-radius: 18px;
+      width: 82px;
+      height: 82px;
+      border-radius: 20px;
       object-fit: cover;
       background: #f3f4f6;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4);
     }
-    .thumb.locked {
-      filter: grayscale(1);
-      opacity: 0.35;
-    }
-    .item-main {
-      flex: 1;
-      min-width: 0;
-    }
+    .thumb.locked { filter: grayscale(1); opacity: 0.34; }
+    .item-main { flex: 1; min-width: 0; }
     .item-row {
       display: flex;
       align-items: center;
@@ -318,16 +487,41 @@
     .item-name {
       font-weight: 700;
       margin-top: 4px;
+      font-size: 15px;
     }
     .item-text {
-      color: #6b7280;
+      color: var(--muted);
       font-size: 13px;
       margin-top: 4px;
+      line-height: 1.5;
     }
     .item-count {
       text-align: right;
       font-weight: 700;
-      min-width: 48px;
+      min-width: 56px;
+      color: #0f172a;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(226,232,240,0.9);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: var(--shadow-soft);
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 800;
     }
     .simple-grid {
       display: grid;
@@ -336,24 +530,22 @@
       margin-top: 20px;
     }
     .simple-box {
-      background: #f8fafc;
+      background: rgba(248,250,252,0.95);
       border-radius: 18px;
       padding: 14px;
       font-size: 14px;
       color: #475569;
+      border: 1px solid rgba(226,232,240,0.85);
     }
     @media (max-width: 980px) {
-      .grid, .machine-area {
-        grid-template-columns: 1fr;
-      }
-      .simple-grid {
-        grid-template-columns: 1fr 1fr;
-      }
+      .grid, .machine-layout, .stats-grid { grid-template-columns: 1fr; }
+      .simple-grid { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 640px) {
       .wrap { padding: 16px; }
       h1 { font-size: 32px; }
-      .machine { width: 240px; height: 240px; }
+      .machine-stage { width: 280px; height: 380px; }
+      .machine-top { width: 190px; height: 190px; }
       .figure-card img { width: 180px; height: 180px; }
       .simple-grid { grid-template-columns: 1fr; }
     }
@@ -364,7 +556,7 @@
     <div class="top">
       <div>
         <h1>語り場ガチャ</h1>
-        <div class="sub">GitHub Pages向けの超簡易版。画像差し替えだけで試作を進められます。</div>
+        <div class="sub">GitHub Pages向けの簡易版。ガチャページとコレクションページを分け、UIも見栄えを整えた版です。</div>
       </div>
       <div class="status-row">
         <div class="pill">コイン: ∞</div>
@@ -372,119 +564,120 @@
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="machine-area">
-          <div class="machine-box">
-            <div id="machine" class="machine">
-              <div class="dots">
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-              </div>
-              <div class="handle-base"></div>
-              <div class="handle-ball"></div>
-            </div>
-            <button id="spinBtn">ガチャを回す</button>
-            <div class="note">最初は無限に回せる仕様。後からコイン制に変更可能です。</div>
-          </div>
+    <div class="nav-tabs">
+      <button class="nav-btn active" data-page="gachaPage">ガチャ</button>
+      <button class="nav-btn" data-page="collectionPage">コレクション</button>
+    </div>
 
-          <div class="result-box">
-            <div>
-              <div class="result-title">排出結果</div>
-              <div id="resultStage" class="result-stage">
-                <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
+    <div id="gachaPage" class="page active">
+      <div class="grid">
+        <div class="card">
+          <div class="machine-layout">
+            <div class="machine-box">
+              <div class="machine-stage">
+                <div class="machine-body"></div>
+                <div id="machineTop" class="machine-top">
+                  <div class="capsule-dots">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                  </div>
+                </div>
+                <div class="shine"></div>
+                <div class="machine-slot"></div>
+                <div class="machine-tray"></div>
+                <div id="handleWrap" class="handle-wrap">
+                  <div class="handle-rod"></div>
+                  <div class="handle-knob"></div>
+                </div>
               </div>
+              <button id="spinBtn" class="spin-btn">ガチャを回す</button>
+              <div class="note">最初は無限に回せる仕様。後からコイン制・10連・確定演出も追加できます。</div>
             </div>
-            <div class="progress-wrap">
-              <div class="progress-top">
-                <span>コレクション達成率</span>
-                <span id="collectionText">0/0</span>
+
+            <div class="result-box">
+              <div>
+                <div class="result-title">排出結果</div>
+                <div id="resultStage" class="result-stage">
+                  <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
+                </div>
               </div>
-              <div class="bar">
-                <div id="progressBar" class="bar-inner"></div>
+              <div class="progress-wrap">
+                <div class="progress-top">
+                  <span>コレクション達成率</span>
+                  <span id="collectionText">0/0</span>
+                </div>
+                <div class="bar">
+                  <div id="progressBar" class="bar-inner"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="section-title">コレクション</div>
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="collection">図鑑</button>
-          <button class="tab-btn" data-tab="rates">レア度 / 排出率</button>
+        <div class="card">
+          <div class="section-title">ガチャ情報</div>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-label">獲得種類数</div>
+              <div id="ownedKinds" class="stat-value">0</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">総回転数</div>
+              <div id="totalSpinStat" class="stat-value">0</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">未獲得数</div>
+              <div id="remainingStat" class="stat-value">0</div>
+            </div>
+          </div>
+          <div id="ratesList" class="list"></div>
         </div>
-        <div id="tabContent"></div>
       </div>
     </div>
 
-    <div class="card" style="margin-top: 20px;">
-      <div class="section-title">この簡易版に入れている要素</div>
-      <div class="simple-grid">
-        <div class="simple-box">実際に回しているように見えるガチャUI</div>
-        <div class="simple-box">No.順に並ぶコレクション図鑑</div>
-        <div class="simple-box">重複排出と所持数カウント</div>
-        <div class="simple-box">レア度・排出率設定</div>
-        <div class="simple-box">無限ガチャ仕様</div>
-        <div class="simple-box">画像差し替えだけで運用しやすい構成</div>
-        <div class="simple-box">未獲得は伏せ表示</div>
-        <div class="simple-box">GitHub Pagesにそのまま置きやすい単一HTML</div>
+    <div id="collectionPage" class="page">
+      <div class="card">
+        <div class="collection-head">
+          <div>
+            <div class="section-title" style="margin-bottom: 6px;">コレクション図鑑</div>
+            <div class="collection-sub">No.順で管理。未獲得は伏せ表示、重複所持は数をカウント表示。</div>
+          </div>
+          <div class="small-tabs">
+            <button class="tab-btn active" data-tab="collection">図鑑</button>
+            <button class="tab-btn" data-tab="rates">レア度 / 排出率</button>
+          </div>
+        </div>
+        <div id="tabContent"></div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <div class="section-title">この簡易版に入れている要素</div>
+        <div class="simple-grid">
+          <div class="simple-box">ガチャページとコレクションページを分離</div>
+          <div class="simple-box">実機っぽいカプセルトイ風UI</div>
+          <div class="simple-box">No.順コレクション表示</div>
+          <div class="simple-box">重複排出と所持数カウント</div>
+          <div class="simple-box">レア度・排出率設定</div>
+          <div class="simple-box">無限ガチャ仕様</div>
+          <div class="simple-box">画像差し替えだけで運用しやすい構成</div>
+          <div class="simple-box">GitHub Pagesにそのまま置きやすい単一HTML</div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
     const FIGURES = [
-      {
-        id: 1,
-        no: 'No.1',
-        name: '語り場オーナーA',
-        rarity: 'N',
-        dropRate: 40,
-        concept: 'やさしく迎えるファシリテーター',
-        image: 'images/no1.png'
-      },
-      {
-        id: 2,
-        no: 'No.2',
-        name: '語り場オーナーB',
-        rarity: 'R',
-        dropRate: 28,
-        concept: '熱量高めのアイデアメーカー',
-        image: 'images/no2.png'
-      },
-      {
-        id: 3,
-        no: 'No.3',
-        name: '語り場オーナーC',
-        rarity: 'R',
-        dropRate: 18,
-        concept: '深掘り型の聞き手',
-        image: 'images/no3.png'
-      },
-      {
-        id: 4,
-        no: 'No.4',
-        name: '語り場オーナーD',
-        rarity: 'SR',
-        dropRate: 10,
-        concept: '場をつなぐストーリーテラー',
-        image: 'images/no4.png'
-      },
-      {
-        id: 5,
-        no: 'No.5',
-        name: '語り場オーナーE',
-        rarity: 'SSR',
-        dropRate: 4,
-        concept: '伝説の語り場マスター',
-        image: 'images/no5.png'
-      }
+      { id: 1, no: 'No.1', name: '語り場オーナーA', rarity: 'N', dropRate: 40, concept: 'やさしく迎えるファシリテーター', image: 'images/no1.png' },
+      { id: 2, no: 'No.2', name: '語り場オーナーB', rarity: 'R', dropRate: 28, concept: '熱量高めのアイデアメーカー', image: 'images/no2.png' },
+      { id: 3, no: 'No.3', name: '語り場オーナーC', rarity: 'R', dropRate: 18, concept: '深掘り型の聞き手', image: 'images/no3.png' },
+      { id: 4, no: 'No.4', name: '語り場オーナーD', rarity: 'SR', dropRate: 10, concept: '場をつなぐストーリーテラー', image: 'images/no4.png' },
+      { id: 5, no: 'No.5', name: '語り場オーナーE', rarity: 'SSR', dropRate: 4, concept: '伝説の語り場マスター', image: 'images/no5.png' }
     ];
 
-    const STORAGE_KEY = 'katariba_gacha_inventory_v1';
-    const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v1';
+    const STORAGE_KEY = 'katariba_gacha_inventory_v2';
+    const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v2';
 
     let inventory = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     let totalSpins = Number(localStorage.getItem(STORAGE_SPIN_KEY) || 0);
@@ -492,12 +685,17 @@
     let spinning = false;
 
     const spinBtn = document.getElementById('spinBtn');
-    const machine = document.getElementById('machine');
+    const machineTop = document.getElementById('machineTop');
+    const handleWrap = document.getElementById('handleWrap');
     const resultStage = document.getElementById('resultStage');
     const tabContent = document.getElementById('tabContent');
     const spinCount = document.getElementById('spinCount');
     const collectionText = document.getElementById('collectionText');
     const progressBar = document.getElementById('progressBar');
+    const ownedKinds = document.getElementById('ownedKinds');
+    const totalSpinStat = document.getElementById('totalSpinStat');
+    const remainingStat = document.getElementById('remainingStat');
+    const ratesList = document.getElementById('ratesList');
 
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
@@ -526,6 +724,26 @@
       collectionText.textContent = `${owned}/${total}`;
       progressBar.style.width = `${rate}%`;
       spinCount.textContent = totalSpins;
+      ownedKinds.textContent = owned;
+      totalSpinStat.textContent = totalSpins;
+      remainingStat.textContent = total - owned;
+    }
+
+    function renderRatesSide() {
+      ratesList.innerHTML = FIGURES.map(figure => `
+        <div class="item">
+          <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
+          <div class="item-main">
+            <div class="item-row">
+              <div><strong>${figure.no}</strong></div>
+              <span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span>
+            </div>
+            <div class="item-name">${figure.name}</div>
+            <div class="item-text">${figure.concept}</div>
+          </div>
+          <div class="item-count">${figure.dropRate}%</div>
+        </div>
+      `).join('');
     }
 
     function renderCollectionTab() {
@@ -576,11 +794,8 @@
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === activeTab);
       });
-      if (activeTab === 'collection') {
-        renderCollectionTab();
-      } else {
-        renderRatesTab();
-      }
+      if (activeTab === 'collection') renderCollectionTab();
+      else renderRatesTab();
       updateProgress();
     }
 
@@ -602,7 +817,8 @@
       spinning = true;
       spinBtn.disabled = true;
       spinBtn.textContent = 'ガチャを回しています...';
-      machine.classList.add('spinning');
+      machineTop.classList.add('spinning');
+      handleWrap.classList.add('spinning');
       resultStage.innerHTML = '<div class="capsule"></div>';
 
       await new Promise(resolve => setTimeout(resolve, 1400));
@@ -612,9 +828,11 @@
       totalSpins += 1;
       saveState();
 
-      machine.classList.remove('spinning');
+      machineTop.classList.remove('spinning');
+      handleWrap.classList.remove('spinning');
       renderResult(result);
       renderTab();
+      renderRatesSide();
 
       spinBtn.disabled = false;
       spinBtn.textContent = 'ガチャを回す';
@@ -628,8 +846,17 @@
       });
     });
 
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pageId = btn.dataset.page;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === pageId));
+      });
+    });
+
     spinBtn.addEventListener('click', spinGacha);
 
+    renderRatesSide();
     renderTab();
   </script>
 </body>
