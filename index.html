@@ -570,68 +570,47 @@
     </div>
 
     <div id="gachaPage" class="page active">
-      <div class="grid">
-        <div class="card">
-          <div class="machine-layout">
-            <div class="machine-box">
-              <div class="machine-stage">
-                <div class="machine-body"></div>
-                <div id="machineTop" class="machine-top">
-                  <div class="capsule-dots">
-                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                  </div>
-                </div>
-                <div class="shine"></div>
-                <div class="machine-slot"></div>
-                <div class="machine-tray"></div>
-                <div id="handleWrap" class="handle-wrap">
-                  <div class="handle-rod"></div>
-                  <div class="handle-knob"></div>
+      <div class="card">
+        <div class="machine-layout" style="grid-template-columns: 1fr;">
+          <div class="machine-box">
+            <div class="machine-stage">
+              <div class="machine-body"></div>
+              <div id="machineTop" class="machine-top">
+                <div class="capsule-dots">
+                  <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                  <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                  <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
                 </div>
               </div>
-              <button id="spinBtn" class="spin-btn">ガチャを回す</button>
-              <div class="note">最初は無限に回せる仕様。後からコイン制・10連・確定演出も追加できます。</div>
+              <div class="shine"></div>
+              <div class="machine-slot"></div>
+              <div class="machine-tray"></div>
+              <div id="handleWrap" class="handle-wrap">
+                <div class="handle-rod"></div>
+                <div class="handle-knob"></div>
+              </div>
             </div>
+            <button id="spinBtn" class="spin-btn">ガチャを回す</button>
+            <div class="note">最初は無限に回せる仕様。後からコイン制・10連・確定演出も追加できます。</div>
+          </div>
 
-            <div class="result-box">
-              <div>
-                <div class="result-title">排出結果</div>
-                <div id="resultStage" class="result-stage">
-                  <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
-                </div>
+          <div class="result-box" style="max-width: 420px; margin: 0 auto; width: 100%;">
+            <div>
+              <div class="result-title">排出結果</div>
+              <div id="resultStage" class="result-stage">
+                <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
               </div>
-              <div class="progress-wrap">
-                <div class="progress-top">
-                  <span>コレクション達成率</span>
-                  <span id="collectionText">0/0</span>
-                </div>
-                <div class="bar">
-                  <div id="progressBar" class="bar-inner"></div>
-                </div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-top">
+                <span>コレクション達成率</span>
+                <span id="collectionText">0/0</span>
+              </div>
+              <div class="bar">
+                <div id="progressBar" class="bar-inner"></div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="section-title">ガチャ情報</div>
-          <div class="stats-grid">
-            <div class="stat-box">
-              <div class="stat-label">獲得種類数</div>
-              <div id="ownedKinds" class="stat-value">0</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">総回転数</div>
-              <div id="totalSpinStat" class="stat-value">0</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">未獲得数</div>
-              <div id="remainingStat" class="stat-value">0</div>
-            </div>
-          </div>
-          <div id="ratesList" class="list"></div>
         </div>
       </div>
     </div>
@@ -669,15 +648,13 @@
 
   <script>
     const FIGURES = [
-      { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場編集長', image: 'images/no1.png' },
-      { id: 2, no: 'No.2', name: 'よっしー', rarity: 'R', dropRate: 28, concept: 'LIFE STORY', image: 'images/no2.png' },
-      { id: 3, no: 'No.3', name: 'じんさん', rarity: 'R', dropRate: 18, concept: '語り場なんでも屋さん', image: 'images/no3.png' },
-      { id: 4, no: 'No.4', name: '海賊けん', rarity: 'SR', dropRate: 10, concept: '世界を巡るファシリテーター', image: 'images/no4.png' },
-      { id: 5, no: 'No.5', name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: 'LIFE ARTS', image: 'images/no5.png' },
-      { id: 6, no: 'No.6', name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '伝説の語り場マスター', image: 'images/no6.png' },
-      { id: 7, no: 'No.7', name: 'かずま', rarity: 'SSR', dropRate: 4, concept: '内臓整体師', image: 'images/no7.png' }
+      { id: 1, no: 'No.1', name: '語り場オーナーA', rarity: 'N', dropRate: 40, concept: 'やさしく迎えるファシリテーター', image: 'images/no1.png' },
+      { id: 2, no: 'No.2', name: '語り場オーナーB', rarity: 'R', dropRate: 28, concept: '熱量高めのアイデアメーカー', image: 'images/no2.png' },
+      { id: 3, no: 'No.3', name: '語り場オーナーC', rarity: 'R', dropRate: 18, concept: '深掘り型の聞き手', image: 'images/no3.png' },
+      { id: 4, no: 'No.4', name: '語り場オーナーD', rarity: 'SR', dropRate: 10, concept: '場をつなぐストーリーテラー', image: 'images/no4.png' },
+      { id: 5, no: 'No.5', name: '語り場オーナーE', rarity: 'SSR', dropRate: 4, concept: '伝説の語り場マスター', image: 'images/no5.png' }
     ];
-    
+
     const STORAGE_KEY = 'katariba_gacha_inventory_v2';
     const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v2';
 
@@ -694,10 +671,6 @@
     const spinCount = document.getElementById('spinCount');
     const collectionText = document.getElementById('collectionText');
     const progressBar = document.getElementById('progressBar');
-    const ownedKinds = document.getElementById('ownedKinds');
-    const totalSpinStat = document.getElementById('totalSpinStat');
-    const remainingStat = document.getElementById('remainingStat');
-    const ratesList = document.getElementById('ratesList');
 
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
@@ -726,26 +699,6 @@
       collectionText.textContent = `${owned}/${total}`;
       progressBar.style.width = `${rate}%`;
       spinCount.textContent = totalSpins;
-      ownedKinds.textContent = owned;
-      totalSpinStat.textContent = totalSpins;
-      remainingStat.textContent = total - owned;
-    }
-
-    function renderRatesSide() {
-      ratesList.innerHTML = FIGURES.map(figure => `
-        <div class="item">
-          <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
-          <div class="item-main">
-            <div class="item-row">
-              <div><strong>${figure.no}</strong></div>
-              <span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span>
-            </div>
-            <div class="item-name">${figure.name}</div>
-            <div class="item-text">${figure.concept}</div>
-          </div>
-          <div class="item-count">${figure.dropRate}%</div>
-        </div>
-      `).join('');
     }
 
     function renderCollectionTab() {
@@ -834,7 +787,6 @@
       handleWrap.classList.remove('spinning');
       renderResult(result);
       renderTab();
-      renderRatesSide();
 
       spinBtn.disabled = false;
       spinBtn.textContent = 'ガチャを回す';
@@ -857,8 +809,6 @@
     });
 
     spinBtn.addEventListener('click', spinGacha);
-
-    renderRatesSide();
     renderTab();
   </script>
 </body>
