@@ -112,12 +112,12 @@
     }
     .machine-layout {
       display: grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 1fr;
       gap: 18px;
       align-items: stretch;
     }
     .machine-box {
-      min-height: 560px;
+      min-height: calc(100vh - 240px);
       border-radius: 30px;
       padding: 28px;
       display: flex;
@@ -542,10 +542,28 @@
       .simple-grid { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 640px) {
-      .wrap { padding: 16px; }
-      h1 { font-size: 32px; }
-      .machine-stage { width: 280px; height: 380px; }
-      .machine-top { width: 190px; height: 190px; }
+      .wrap { padding: 14px; }
+      h1 { font-size: 28px; }
+      .sub { font-size: 13px; }
+      .nav-tabs { width: 100%; display: grid; }
+      .nav-btn { padding: 12px 10px; font-size: 14px; }
+      .machine-box {
+        min-height: calc(100vh - 210px);
+        padding: 18px 14px 16px;
+      }
+      .machine-stage { width: 250px; height: 320px; }
+      .machine-body { border-radius: 34px 34px 28px 28px; }
+      .machine-top { width: 168px; height: 168px; top: 18px; border-width: 9px; }
+      .capsule-dots { padding: 34px; gap: 8px; }
+      .dot { width: 24px; height: 24px; }
+      .machine-slot { bottom: 82px; width: 102px; height: 15px; }
+      .machine-tray { bottom: 24px; width: 138px; height: 54px; border-width: 4px; }
+      .handle-wrap { top: 134px; right: -10px; width: 82px; height: 82px; }
+      .handle-rod { right: 30px; top: 34px; width: 44px; height: 10px; }
+      .handle-knob { width: 40px; height: 40px; top: 16px; }
+      .shine { inset: auto 34px 72px 34px; height: 82px; }
+      .spin-btn { margin-top: 14px; padding: 14px 22px; font-size: 15px; }
+      .note { margin-top: 10px; font-size: 12px; }
       .figure-card img { width: 180px; height: 180px; }
       .simple-grid { grid-template-columns: 1fr; }
     }
@@ -571,7 +589,7 @@
 
     <div id="gachaPage" class="page active">
       <div class="card">
-        <div class="machine-layout" style="grid-template-columns: 1fr;">
+        <div class="machine-layout">
           <div class="machine-box">
             <div class="machine-stage">
               <div class="machine-body"></div>
@@ -593,23 +611,24 @@
             <button id="spinBtn" class="spin-btn">ガチャを回す</button>
             <div class="note">最初は無限に回せる仕様。後からコイン制・10連・確定演出も追加できます。</div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <div class="result-box" style="max-width: 420px; margin: 0 auto; width: 100%;">
-            <div>
-              <div class="result-title">排出結果</div>
-              <div id="resultStage" class="result-stage">
-                <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
-              </div>
-            </div>
-            <div class="progress-wrap">
-              <div class="progress-top">
-                <span>コレクション達成率</span>
-                <span id="collectionText">0/0</span>
-              </div>
-              <div class="bar">
-                <div id="progressBar" class="bar-inner"></div>
-              </div>
-            </div>
+    <div id="resultModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(15,23,42,0.52); backdrop-filter: blur(6px); padding:16px; align-items:center; justify-content:center;">
+      <div style="width:min(420px, 100%); max-height:90vh; overflow:auto; background:linear-gradient(180deg, rgba(248,250,252,0.98), rgba(255,255,255,0.98)); border:1px solid rgba(226,232,240,0.95); border-radius:28px; box-shadow:0 24px 60px rgba(15,23,42,0.22); padding:16px; position:relative;">
+        <button id="closeModalBtn" style="position:absolute; top:12px; right:12px; width:38px; height:38px; border:none; border-radius:999px; background:#e2e8f0; color:#0f172a; font-size:20px; font-weight:700; cursor:pointer;">×</button>
+        <div class="result-title" style="padding-right:42px;">排出結果</div>
+        <div id="resultStage" class="result-stage" style="min-height:330px;">
+          <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-top">
+            <span>コレクション達成率</span>
+            <span id="collectionText">0/0</span>
+          </div>
+          <div class="bar">
+            <div id="progressBar" class="bar-inner"></div>
           </div>
         </div>
       </div>
@@ -668,6 +687,8 @@
     const spinBtn = document.getElementById('spinBtn');
     const machineTop = document.getElementById('machineTop');
     const handleWrap = document.getElementById('handleWrap');
+    const resultModal = document.getElementById('resultModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
     const resultStage = document.getElementById('resultStage');
     const tabContent = document.getElementById('tabContent');
     const spinCount = document.getElementById('spinCount');
@@ -767,6 +788,8 @@
           <div class="count">所持数: ${count}</div>
         </div>
       `;
+      resultModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
     }
 
     async function spinGacha() {
@@ -776,6 +799,8 @@
       spinBtn.textContent = 'ガチャを回しています...';
       machineTop.classList.add('spinning');
       handleWrap.classList.add('spinning');
+      resultModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
       resultStage.innerHTML = '<div class="capsule"></div>';
 
       await new Promise(resolve => setTimeout(resolve, 1400));
@@ -808,6 +833,18 @@
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b === btn));
         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === pageId));
       });
+    });
+
+    closeModalBtn.addEventListener('click', () => {
+      resultModal.style.display = 'none';
+      document.body.style.overflow = '';
+    });
+
+    resultModal.addEventListener('click', (e) => {
+      if (e.target === resultModal) {
+        resultModal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
     });
 
     spinBtn.addEventListener('click', spinGacha);
