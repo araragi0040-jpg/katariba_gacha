@@ -667,24 +667,47 @@
 
   <script>
     const FIGURES = [
-      { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no1.png' },
-      { id: 2, no: 'No.2', name: 'よっしー', rarity: 'N', dropRate: 40, concept: 'LIFE STORY', image: 'images/no2.png' },
-      { id: 3, no: 'No.3', name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場なんでも屋さん', image: 'images/no3.png' },
-      { id: 4, no: 'No.4', name: '海賊けん', rarity: 'N', dropRate: 40, concept: '世界を巡るファシリテーター', image: 'images/no4.png' },
-      { id: 5, no: 'No.5', name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: 'LIFE ARTS', image: 'images/no5.png' },
-      { id: 6, no: 'No.6', name: 'とっとくん', rarity: 'N', dropRate: 40, concept: 'やさしい世界の広報家', image: 'images/no6.png' },
-      { id: 7, no: 'No.7', name: 'かずま', rarity: 'N', dropRate: 40, concept: '内臓整体師', image: 'images/no7.png' },
-      { id: 8, no: 'No.8', name: '東さん', rarity: 'SSR', dropRate: 4, concept: '編集長', image: 'images/no8.png' },
-      { id: 9, no: 'No.9', name: '東さん', rarity: 'SR', dropRate: 10, concept: 'ガンプラ製作中', image: 'images/no9.png' },
-      { id: 10, no: 'No.10', name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'ハウスクリーニング', image: 'images/no10.png' },
-      { id: 11, no: 'No.11', name: 'とっとくん', rarity: 'SSR', dropRate: 4, concept: 'デザイナー', image: 'images/no11.png' },
-      { id: 12, no: 'No.12', name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no12.png' },
-      { id: 13, no: 'No.13', name: 'だいち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no13.png' },
-      { id: 14, no: 'No.14', name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no14.png' },
-      { id: 15, no: 'No.15', name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no15.png' },
-      { id: 16, no: 'No.16', name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no16.png' },
-      { id: 17, no: 'No.17', name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/no17.png' }
-    ];
+      { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
+      { id: 2, no: 'No.2', name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/よっしー_N.png' },
+      { id: 3, no: 'No.3', name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/じんさん_N.png' },
+      { id: 4, no: 'No.4', name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ケンさん_N.png' },
+      { id: 5, no: 'No.5', name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/しゅう_N.png' },
+      { id: 6, no: 'No.6', name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/とっとくん_N.png' },
+      { id: 7, no: 'No.7', name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/かずま_N.png' },
+      { id: 8, no: 'No.8', name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },
+      { id: 9, no: 'No.9', name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png' },      
+      { id: 10, no: 'No.10', name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png' },
+      { id: 11, no: 'No.11', name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/おかっち_N.png' },
+      { id: 12, no: 'No.12', name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },
+      { id: 13, no: 'No.13', name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png' }
+      { id: 14, no: 'No.14', name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/東さん_ガンプラ.png' },
+      { id: 15, no: 'No.15', name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/よっしー_LS撮影.png' },
+      { id: 16, no: 'No.16', name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/じんさん_ボドゲ.png' },
+      { id: 17, no: 'No.17', name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/ケンさん_講演.png' },
+      { id: 18, no: 'No.18', name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/しゅう_乾杯.png' },
+      { id: 19, no: 'No.19', name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/とっとくん_ハウスクリーニング.png' },
+      { id: 20, no: 'No.20', name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/かずま_内臓整体.png' },
+/*    { id: 21, no: 'No.21', name: 'たかちゃん', rarity: 'R', dropRate: 18, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },*/
+      { id: 21, no: 'No.21', name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/だいちさん_占い中.png' },      
+      { id: 22, no: 'No.22', name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/ゆかちゃん_占い中.png' },
+      { id: 23, no: 'No.23', name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/おかっち_よもぎ蒸し.png' },
+/*    { id: 25, no: 'No.25', name: 'だいちゃん', rarity: 'R', dropRate: 18, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },*/
+      { id: 24, no: 'No.24', name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/ぐっちょん_会計.png' }
+      { id: 25, no: 'No.25', name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/東さん_編集長.png' }, 
+      { id: 26, no: 'No.26', name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/よっしー_書籍出版.png' },
+      { id: 27, no: 'No.27', name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/じんさん_木工.png' },
+      { id: 28, no: 'No.28', name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/ケンさん_ベース演奏.png' },
+      { id: 29, no: 'No.29', name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/しゅう_MC.png' },
+      { id: 30, no: 'No.30', name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png' },
+      { id: 31, no: 'No.31', name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png' },
+ /*   { id: 32, no: 'No.32', name: 'たかちゃん', rarity: 'SR', dropRate: 10, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },*/
+ /*   { id: 32, no: 'No.32', name: 'だいちさん', rarity: 'SR', dropRate: 10, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png' },*/      
+ /*   { id: 33, no: 'No.10', name: 'ゆかちゃん', rarity: 'SR', dropRate: 10, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png' },*/
+ /*   { id: 11, no: 'No.11', name: 'おかっち', rarity: 'SR', dropRate: 10, concept: '語り場共同オーナー', image: 'images/おかっち_N.png' },*/
+ /*   { id: 12, no: 'No.12', name: 'だいちゃん', rarity: 'SR', dropRate: 10, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },*/
+ /*   { id: 13, no: 'No.13', name: 'ぐっちょん', rarity: 'SR', dropRate: 10, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png' }*/
+/*    { id: 23, no: 'No.11', name: 'とっとくん', rarity: 'SSR', dropRate: 4, concept: 'デザイナー', image: 'images/no11.png' },*/
+        ];
 
     const STORAGE_KEY = 'katariba_gacha_inventory_v2';
     const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v2';
