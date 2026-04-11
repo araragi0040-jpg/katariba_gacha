@@ -574,10 +574,10 @@
     <div class="top">
       <div>
         <h1>語り場ガチャ</h1>
-        <div class="sub">GitHub Pages向けの簡易版。ガチャページとコレクションページを分け、UIも見栄えを整えた版です。</div>
+        <div id="pageSub" class="sub">ニュースサイトから入場したユーザー向けの語り場ガチャです。</div>
       </div>
       <div class="status-row">
-        <div class="pill">コイン: ∞</div>
+        <div class="pill">pt: <span id="ptValue">--</span></div>
         <div class="pill">総回転数: <span id="spinCount">0</span></div>
       </div>
     </div>
@@ -609,7 +609,7 @@
               </div>
             </div>
             <button id="spinBtn" class="spin-btn">ガチャを回す</button>
-            <div class="note">最初は無限に回せる仕様。後からコイン制・10連・確定演出も追加できます。</div>
+            <div class="note">ptを消費して1回ずつ回せます。セッション切れ時はニュースサイトから入り直してください。</div>
           </div>
         </div>
       </div>
@@ -665,49 +665,24 @@
     </div>
   </div>
 
+  <script src="./config.js?v=1"></script>
+
   <script>
-    const FIGURES = [
-      { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
-      { id: 2, no: 'No.2', name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/よっしー_N.png' },
-      { id: 3, no: 'No.3', name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/じんさん_N.png' },
-      { id: 4, no: 'No.4', name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ケンさん_N.png' },
-      { id: 5, no: 'No.5', name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/しゅう_N.png' },
-      { id: 6, no: 'No.6', name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/とっとくん_N.png' },
-      { id: 7, no: 'No.7', name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/かずま_N.png' },
-      { id: 8, no: 'No.8', name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },
-      { id: 9, no: 'No.9', name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png' },      
-      { id: 10, no: 'No.10', name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png' },
-      { id: 11, no: 'No.11', name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/おかっち_N.png' },
-      { id: 12, no: 'No.12', name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },
-      { id: 13, no: 'No.13', name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png' },
-      { id: 14, no: 'No.14', name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/東さん_ガンプラ.png' },
-      { id: 15, no: 'No.15', name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/よっしー_LS撮影.png' },
-      { id: 16, no: 'No.16', name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/じんさん_ボドゲ.png' },
-      { id: 17, no: 'No.17', name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/ケンさん_講演.png' },
-      { id: 18, no: 'No.18', name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/しゅう_乾杯.png' },
-      { id: 19, no: 'No.19', name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/とっとくん_ハウスクリーニング.png' },
-      { id: 20, no: 'No.20', name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/かずま_内臓整体.png' },
-      { id: 21, no: 'No.21', name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/だいちさん_占い中.png' },      
-      { id: 22, no: 'No.22', name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/ゆかちゃん_占い中.png' },
-      { id: 23, no: 'No.23', name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/おかっち_よもぎ蒸し.png' },
-      { id: 24, no: 'No.24', name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/ぐっちょん_会計.png' },
-      { id: 25, no: 'No.25', name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/東さん_編集長.png' }, 
-      { id: 26, no: 'No.26', name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/よっしー_書籍出版.png' },
-      { id: 27, no: 'No.27', name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/じんさん_木工.png' },
-      { id: 28, no: 'No.28', name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/ケンさん_ベース演奏.png' },
-      { id: 29, no: 'No.29', name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/しゅう_MC.png' },
-      { id: 30, no: 'No.30', name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png' },
-      { id: 31, no: 'No.31', name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png' }
-/*    { id: 23, no: 'No.11', name: 'とっとくん', rarity: 'SSR', dropRate: 4, concept: 'デザイナー', image: 'images/no11.png' },*/
-        ];
+    const state = {
+      master: [],
+      inventory: {},
+      totalSpins: 0,
+      pt: 0,
+      displayName: '',
+      activeTab: 'collection',
+      sessionReady: false,
+      spinning: false,
+      ticket: '',
+    };
 
-    const STORAGE_KEY = 'katariba_gacha_inventory_v2';
-    const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v2';
-
-    let inventory = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    let totalSpins = Number(localStorage.getItem(STORAGE_SPIN_KEY) || 0);
-    let activeTab = 'collection';
-    let spinning = false;
+    const CONFIG = window.GACHA_CONFIG || {};
+    const API_BASE = (CONFIG.VERCEL_API_BASE || '').replace(/\/$/, '');
+    const SESSION_EXPIRED_MESSAGE = CONFIG.SESSION_EXPIRED_MESSAGE || 'セッションが切れました。元のアプリから入り直してください。';
 
     const spinBtn = document.getElementById('spinBtn');
     const machineTop = document.getElementById('machineTop');
@@ -719,39 +694,82 @@
     const spinCount = document.getElementById('spinCount');
     const collectionText = document.getElementById('collectionText');
     const progressBar = document.getElementById('progressBar');
+    const ptValue = document.getElementById('ptValue');
+    const pageSub = document.getElementById('pageSub');
 
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
-      localStorage.setItem(STORAGE_SPIN_KEY, String(totalSpins));
+    function getTicket() {
+      return new URLSearchParams(location.search).get('ticket') || '';
     }
 
-    function weightedDraw(pool) {
-      const total = pool.reduce((sum, item) => sum + item.dropRate, 0);
-      const rand = Math.random() * total;
-      let cumulative = 0;
-      for (const item of pool) {
-        cumulative += item.dropRate;
-        if (rand <= cumulative) return item;
+    function apiUrl(path) {
+      if (!API_BASE) {
+        throw new Error('config.js の VERCEL_API_BASE が未設定です。');
       }
-      return pool[pool.length - 1];
+      return `${API_BASE}${path}`;
+    }
+
+    async function loadMaster() {
+      const res = await fetch('./gacha-master.json?v=1', { cache: 'no-store' });
+      if (!res.ok) throw new Error('gacha-master.json の読み込みに失敗しました。');
+      state.master = await res.json();
+    }
+
+    async function fetchSession() {
+      const url = new URL(apiUrl('/api/gacha/session'));
+      url.searchParams.set('ticket', state.ticket);
+
+      const res = await fetch(url.toString(), {
+        method: 'GET',
+        credentials: 'omit',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || SESSION_EXPIRED_MESSAGE);
+      }
+
+      state.pt = Number(data.session.pt || 0);
+      state.totalSpins = Number(data.session.totalSpins || 0);
+      state.inventory = data.session.inventory || {};
+      state.displayName = data.session.displayName || '';
+      state.sessionReady = true;
+
+      if (state.displayName) {
+        pageSub.textContent = `${state.displayName} さんの語り場ガチャ`;
+      }
+    }
+
+    function disableForExpiredSession(message) {
+      spinBtn.disabled = true;
+      spinBtn.textContent = '利用できません';
+      resultStage.innerHTML = `<div class="placeholder">${message}</div>`;
+      resultModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      document.getElementById('gachaPage').classList.add('active');
     }
 
     function getOwnedCount() {
-      return FIGURES.filter(f => (inventory[f.id] || 0) > 0).length;
+      return state.master.filter(f => Number(state.inventory[String(f.id)] || 0) > 0).length;
     }
 
     function updateProgress() {
       const owned = getOwnedCount();
-      const total = FIGURES.length;
+      const total = state.master.length;
       const rate = total === 0 ? 0 : Math.round((owned / total) * 100);
       collectionText.textContent = `${owned}/${total}`;
       progressBar.style.width = `${rate}%`;
-      spinCount.textContent = totalSpins;
+      spinCount.textContent = String(state.totalSpins);
+      ptValue.textContent = String(state.pt);
+    }
+
+    function findFigureById(id) {
+      return state.master.find(f => String(f.id) === String(id));
     }
 
     function renderCollectionTab() {
-      const html = FIGURES.map(figure => {
-        const count = inventory[figure.id] || 0;
+      const html = state.master.map(figure => {
+        const count = Number(state.inventory[String(figure.id)] || 0);
         const owned = count > 0;
         const imgClass = owned ? 'thumb' : 'thumb locked';
         const imgSrc = owned ? figure.image : 'images/locked.png';
@@ -776,7 +794,7 @@
     }
 
     function renderRatesTab() {
-      const html = FIGURES.map(figure => `
+      const html = state.master.map(figure => `
         <div class="item">
           <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
           <div class="item-main">
@@ -795,15 +813,14 @@
 
     function renderTab() {
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === activeTab);
+        btn.classList.toggle('active', btn.dataset.tab === state.activeTab);
       });
-      if (activeTab === 'collection') renderCollectionTab();
+      if (state.activeTab === 'collection') renderCollectionTab();
       else renderRatesTab();
       updateProgress();
     }
 
-    function renderResult(figure) {
-      const count = inventory[figure.id] || 0;
+    function renderResult(figure, count) {
       resultStage.innerHTML = `
         <div class="figure-card">
           <img src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figure.no)}'">
@@ -818,8 +835,8 @@
     }
 
     async function spinGacha() {
-      if (spinning) return;
-      spinning = true;
+      if (!state.sessionReady || state.spinning) return;
+      state.spinning = true;
       spinBtn.disabled = true;
       spinBtn.textContent = 'ガチャを回しています...';
       machineTop.classList.add('spinning');
@@ -828,26 +845,47 @@
       document.body.style.overflow = 'hidden';
       resultStage.innerHTML = '<div class="capsule"></div>';
 
-      await new Promise(resolve => setTimeout(resolve, 1400));
+      try {
+        const res = await fetch(apiUrl('/api/gacha/spin'), {
+          method: 'POST',
+          credentials: 'omit',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({ ticket: state.ticket }),
+        });
 
-      const result = weightedDraw(FIGURES);
-      inventory[result.id] = (inventory[result.id] || 0) + 1;
-      totalSpins += 1;
-      saveState();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || 'ガチャ実行に失敗しました。');
+        }
 
-      machineTop.classList.remove('spinning');
-      handleWrap.classList.remove('spinning');
-      renderResult(result);
-      renderTab();
+        const resultFigure = findFigureById(data.result.figureId);
+        if (!resultFigure) {
+          throw new Error('結果データの整合性に問題があります。');
+        }
 
-      spinBtn.disabled = false;
-      spinBtn.textContent = 'ガチャを回す';
-      spinning = false;
+        state.pt = Number(data.result.pt || 0);
+        state.totalSpins = Number(data.result.totalSpins || 0);
+        state.inventory = data.result.inventory || {};
+
+        renderResult(resultFigure, Number(state.inventory[String(resultFigure.id)] || 0));
+        renderTab();
+      } catch (error) {
+        resultStage.innerHTML = `<div class="placeholder">${error.message || 'ガチャ実行に失敗しました。'}</div>`;
+      } finally {
+        machineTop.classList.remove('spinning');
+        handleWrap.classList.remove('spinning');
+        spinBtn.disabled = !state.sessionReady;
+        spinBtn.textContent = 'ガチャを回す';
+        state.spinning = false;
+      }
     }
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        activeTab = btn.dataset.tab;
+        state.activeTab = btn.dataset.tab;
         renderTab();
       });
     });
@@ -873,7 +911,25 @@
     });
 
     spinBtn.addEventListener('click', spinGacha);
-    renderTab();
+
+    (async function init() {
+      try {
+        state.ticket = getTicket();
+        await loadMaster();
+        renderTab();
+
+        if (!state.ticket) {
+          disableForExpiredSession(SESSION_EXPIRED_MESSAGE);
+          return;
+        }
+
+        await fetchSession();
+        renderTab();
+      } catch (error) {
+        disableForExpiredSession(error.message || SESSION_EXPIRED_MESSAGE);
+      }
+    })();
   </script>
+
 </body>
 </html>
