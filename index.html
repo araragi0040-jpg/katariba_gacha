@@ -667,6 +667,108 @@
     </div>
   </div>
 
+      const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
+
+    const gachaParams = new URLSearchParams(window.location.search);
+    const gachaTicket = gachaParams.get("ticket");
+
+    async function callNewsApiFromGacha(action, payload = {}) {
+      const res = await fetch(NEWS_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify({
+          action,
+          ...payload
+        })
+      });
+
+      const text = await res.text();
+      console.log("GACHA API RESPONSE:", action, text);
+
+      try {
+        return text ? JSON.parse(text) : {};
+      } catch (err) {
+        console.error("API response parse error:", err, text);
+        return {
+          ok: false,
+          code: "INVALID_RESPONSE",
+          message: "APIの返答を読み取れませんでした。"
+        };
+      }
+    }
+
+    function renderNewsPoints(pointsValue) {
+      const points = Number(pointsValue || 0);
+      const safePoints = Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
+
+      const el = document.getElementById("newsPoints");
+      if (!el) {
+        console.warn("#newsPoints が見つかりません。");
+        return;
+      }
+
+      el.textContent = `${safePoints}pt`;
+    }
+
+    async function loadNewsPointsForGacha() {
+      if (!gachaTicket) {
+        console.warn("ticket がありません。ニュースサイトから入り直してください。");
+        const el = document.getElementById("newsPoints");
+        if (el) el.textContent = "--pt";
+        return;
+      }
+
+      const data = await callNewsApiFromGacha("getGachaStatus", {
+        ticket: gachaTicket
+      });
+
+      if (!data.ok) {
+        console.warn("getGachaStatus failed:", data);
+        const el = document.getElementById("newsPoints");
+        if (el) el.textContent = "--pt";
+        return;
+      }
+
+      renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+    }
+
+    async function consumePointBeforeGacha() {
+      if (!gachaTicket) {
+        alert("ニュースサイトから入り直してください。");
+        return { ok: false };
+      }
+
+      const data = await callNewsApiFromGacha("useGachaPoint", {
+        ticket: gachaTicket
+      });
+
+      if (!data.ok) {
+        console.warn("useGachaPoint failed:", data);
+
+        if (data.code === "NOT_ENOUGH_POINTS") {
+          renderNewsPoints(data.remainingPoints ?? data.remainingPt ?? data.points ?? 0);
+          alert("ptが不足しています。ニュースサイトでptを貯めてから引いてください。");
+        } else if (data.code === "TICKET_EXPIRED") {
+          alert("接続時間が切れました。ニュースサイトから入り直してください。");
+        } else if (data.code === "INVALID_TICKET") {
+          alert("ガチャチケットが無効です。ニュースサイトから入り直してください。");
+        } else {
+          alert(data.message || "ガチャを引けませんでした。");
+        }
+
+        return { ok: false };
+      }
+
+      renderNewsPoints(data.remainingPoints ?? data.remainingPt ?? data.points ?? 0);
+
+      return {
+        ok: true,
+        ...data
+      };
+    }
+
   <script>
     const FIGURES = [
       { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
@@ -756,7 +858,7 @@
         const count = inventory[figure.id] || 0;
         const owned = count > 0;
         const imgClass = owned ? 'thumb' : 'thumb locked';
-        const imgSrc = owned ? figure.image : 'images/locked.png';
+        const imgSrc = owned ? figure.image : 'https://placehold.co/120x120?text=LOCK';
         const name = owned ? figure.name : '未獲得';
         const text = owned ? figure.concept : 'ガチャで引くと公開されます';
         return `
@@ -821,30 +923,48 @@
 
     async function spinGacha() {
       if (spinning) return;
+
       spinning = true;
       spinBtn.disabled = true;
-      spinBtn.textContent = 'ガチャを回しています...';
-      machineTop.classList.add('spinning');
-      handleWrap.classList.add('spinning');
-      resultModal.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
-      resultStage.innerHTML = '<div class="capsule"></div>';
+      spinBtn.textContent = 'pt確認中...';
 
-      await new Promise(resolve => setTimeout(resolve, 1400));
+      try {
+        const pointResult = await consumePointBeforeGacha();
 
-      const result = weightedDraw(FIGURES);
-      inventory[result.id] = (inventory[result.id] || 0) + 1;
-      totalSpins += 1;
-      saveState();
+        if (!pointResult.ok) {
+          return;
+        }
 
-      machineTop.classList.remove('spinning');
-      handleWrap.classList.remove('spinning');
-      renderResult(result);
-      renderTab();
+        spinBtn.textContent = 'ガチャを回しています...';
+        machineTop.classList.add('spinning');
+        handleWrap.classList.add('spinning');
+        resultModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        resultStage.innerHTML = '<div class="capsule"></div>';
 
-      spinBtn.disabled = false;
-      spinBtn.textContent = 'ガチャを回す';
-      spinning = false;
+        await new Promise(resolve => setTimeout(resolve, 1400));
+
+        const result = weightedDraw(FIGURES);
+        inventory[result.id] = (inventory[result.id] || 0) + 1;
+        totalSpins += 1;
+        saveState();
+
+        machineTop.classList.remove('spinning');
+        handleWrap.classList.remove('spinning');
+        renderResult(result);
+        renderTab();
+
+      } catch (err) {
+        console.error("ガチャ処理中のエラー:", err);
+        alert("ガチャ処理中にエラーが発生しました。");
+
+      } finally {
+        machineTop.classList.remove('spinning');
+        handleWrap.classList.remove('spinning');
+        spinBtn.disabled = false;
+        spinBtn.textContent = 'ガチャを回す';
+        spinning = false;
+      }
     }
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -876,6 +996,9 @@
 
     spinBtn.addEventListener('click', spinGacha);
     renderTab();
+    loadNewsPointsForGacha().catch(err => {
+      console.error("pt表示の取得に失敗しました:", err);
+    });
   </script>
 </body>
 </html>
