@@ -2,7 +2,7 @@
 // ニュースサイト連動設定
 // ======================================
 
-const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
+const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbzyL-rkQTcM_GijeBRHFZT3vfsv58xkQIZFAI6PPPC8IFQ50OB62DJrriiWjOLMyZAE/exec";
 
 const gachaParams = new URLSearchParams(window.location.search);
 const gachaTicket = gachaParams.get("ticket");
