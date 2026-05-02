@@ -37,11 +37,13 @@
     }
     .top {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 16px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
       flex-wrap: wrap;
       margin-bottom: 22px;
+      text-align: center;
     }
     h1 {
       margin: 0;
@@ -55,10 +57,12 @@
     }
     .status-row {
       display: flex;
+      justify-content: center;
       gap: 12px;
       flex-wrap: wrap;
     }
-    .pill {
+    .pill,
+    .point-box {
       background: rgba(255,255,255,0.86);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.8);
@@ -432,7 +436,7 @@
       font-size: 14px;
     }
     .small-tabs {
-      display: inline-grid;
+      display: none;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
       background: rgba(255,255,255,0.85);
@@ -574,12 +578,11 @@
     <div class="top">
       <div>
         <h1>語り場ガチャ</h1>
-        <div class="sub">GitHub Pages向けの簡易版。ガチャページとコレクションページを分け、UIも見栄えを整えた版です。</div>
       </div>
       <div class="status-row">
         <div class="point-box">
-  保有pt：<span id="newsPoints">--pt</span>
-</div>
+          保有pt：<span id="newsPoints">--pt</span>
+        </div>
         <div class="pill">総回転数: <span id="spinCount">0</span></div>
       </div>
     </div>
@@ -611,7 +614,6 @@
               </div>
             </div>
             <button id="spinBtn" class="spin-btn">ガチャを回す</button>
-            <div class="note">最初は無限に回せる仕様。後からコイン制・10連・確定演出も追加できます。</div>
           </div>
         </div>
       </div>
@@ -640,38 +642,24 @@
       <div class="card">
         <div class="collection-head">
           <div>
-            <div class="section-title" style="margin-bottom: 6px;">コレクション図鑑</div>
-            <div class="collection-sub">No.順で管理。未獲得は伏せ表示、重複所持は数をカウント表示。</div>
+            <div class="section-title" style="margin-bottom: 0;">コレクション図鑑</div>
           </div>
-          <div class="small-tabs">
+          <div id="collectionTabs" class="small-tabs">
             <button class="tab-btn active" data-tab="collection">図鑑</button>
             <button class="tab-btn" data-tab="rates">レア度 / 排出率</button>
           </div>
         </div>
         <div id="tabContent"></div>
       </div>
-
-      <div class="card" style="margin-top: 20px;">
-        <div class="section-title">この簡易版に入れている要素</div>
-        <div class="simple-grid">
-          <div class="simple-box">ガチャページとコレクションページを分離</div>
-          <div class="simple-box">実機っぽいカプセルトイ風UI</div>
-          <div class="simple-box">No.順コレクション表示</div>
-          <div class="simple-box">重複排出と所持数カウント</div>
-          <div class="simple-box">レア度・排出率設定</div>
-          <div class="simple-box">無限ガチャ仕様</div>
-          <div class="simple-box">画像差し替えだけで運用しやすい構成</div>
-          <div class="simple-box">GitHub Pagesにそのまま置きやすい単一HTML</div>
-        </div>
-      </div>
     </div>
   </div>
   
-<script>
+  <script>
     const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
 
     const gachaParams = new URLSearchParams(window.location.search);
     const gachaTicket = gachaParams.get("ticket");
+    const isAdmin = gachaParams.get("admin") === "1";
 
     async function callNewsApiFromGacha(action, payload = {}) {
       const res = await fetch(NEWS_API_URL, {
@@ -803,7 +791,7 @@
       { id: 30, no: 'No.30', name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png' },
       { id: 31, no: 'No.31', name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png' }
 /*    { id: 23, no: 'No.11', name: 'とっとくん', rarity: 'SSR', dropRate: 4, concept: 'デザイナー', image: 'images/no11.png' },*/
-        ];
+    ];
 
     const STORAGE_KEY = 'katariba_gacha_inventory_v2';
     const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v2';
@@ -823,6 +811,11 @@
     const spinCount = document.getElementById('spinCount');
     const collectionText = document.getElementById('collectionText');
     const progressBar = document.getElementById('progressBar');
+    const collectionTabs = document.getElementById('collectionTabs');
+
+    if (isAdmin && collectionTabs) {
+      collectionTabs.style.display = 'inline-grid';
+    }
 
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
@@ -898,11 +891,20 @@
     }
 
     function renderTab() {
+      if (!isAdmin && activeTab === 'rates') {
+        activeTab = 'collection';
+      }
+
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === activeTab);
       });
-      if (activeTab === 'collection') renderCollectionTab();
-      else renderRatesTab();
+
+      if (isAdmin && activeTab === 'rates') {
+        renderRatesTab();
+      } else {
+        renderCollectionTab();
+      }
+
       updateProgress();
     }
 
@@ -969,6 +971,8 @@
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (!isAdmin && btn.dataset.tab === 'rates') return;
+
         activeTab = btn.dataset.tab;
         renderTab();
       });
