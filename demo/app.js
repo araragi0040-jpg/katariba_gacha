@@ -41,6 +41,60 @@ async function callNewsApiFromGacha(action, payload = {}) {
   }
 }
 
+async function consumePointsBeforeMultiGacha(requestedCount) {
+  if (!gachaTicket) {
+    alert("ニュースサイトから入り直してください。");
+    return { ok: false };
+  }
+
+  const data = await callNewsApiFromGacha("useGachaPoints", {
+    ticket: gachaTicket,
+    count: requestedCount
+  });
+
+  if (!data.ok) {
+    console.warn("useGachaPoints failed:", data);
+
+    if (data.code === "NOT_ENOUGH_POINTS") {
+      renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+      alert("ptが不足しています。");
+    } else if (data.code === "TICKET_EXPIRED") {
+      alert("接続時間が切れました。ニュースサイトから入り直してください。");
+    } else {
+      alert(data.message || "ガチャを引けませんでした。");
+    }
+
+    return { ok: false };
+  }
+
+  renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+
+  return {
+    ok: true,
+    ...data
+  };
+}
+
+async function saveGachaResultsToServer(figures) {
+  if (!gachaTicket) {
+    return { ok: false };
+  }
+
+  const data = await callNewsApiFromGacha("saveGachaResults", {
+    ticket: gachaTicket,
+    results: figures.map(figure => ({
+      id: figure.id,
+      no: figure.no,
+      name: figure.name,
+      rarity: figure.rarity,
+      concept: figure.concept,
+      image: figure.image
+    }))
+  });
+
+  return data;
+}
+
 // ======================================
 // pt表示
 // ======================================
