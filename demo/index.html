@@ -658,6 +658,34 @@
   <script>
     const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
 
+        let latestNewsPoints = null;
+
+    function findPointElement() {
+      return (
+        document.getElementById("newsPoints") ||
+        document.getElementById("gachaPoints") ||
+        document.getElementById("pointCount")
+      );
+    }
+
+    function updateMultiSpinButton(pointsValue) {
+      const btn = document.getElementById("multiSpinBtn");
+      if (!btn) return;
+
+      const points = Number(pointsValue || 0);
+      const safePoints = Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
+      const drawCount = Math.min(10, safePoints);
+
+      if (drawCount <= 0) {
+        btn.textContent = "pt不足";
+        btn.disabled = true;
+        return;
+      }
+
+      btn.textContent = `${drawCount}連で引く`;
+      btn.disabled = false;
+    }
+
     const gachaParams = new URLSearchParams(window.location.search);
     const gachaTicket = gachaParams.get("ticket");
     const isAdmin = gachaParams.get("admin") === "1";
@@ -762,6 +790,72 @@
         ok: true,
         ...data
       };
+    }
+
+        async function consumePointsBeforeMultiGacha(requestedCount) {
+      if (!gachaTicket) {
+        alert("ニュースサイトから入り直してください。");
+        return { ok: false };
+      }
+
+      const data = await callNewsApiFromGacha("useGachaPoints", {
+        ticket: gachaTicket,
+        count: requestedCount
+      });
+
+      if (!data.ok) {
+        console.warn("useGachaPoints failed:", data);
+
+        if (data.code === "NOT_ENOUGH_POINTS") {
+          renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+          alert("ptが不足しています。");
+        } else if (data.code === "TICKET_EXPIRED") {
+          alert("接続時間が切れました。ニュースサイトから入り直してください。");
+        } else if (data.code === "INVALID_TICKET") {
+          alert("ガチャチケットが無効です。ニュースサイトから入り直してください。");
+        } else {
+          alert(data.message || "ガチャを引けませんでした。");
+        }
+
+        return { ok: false };
+      }
+
+      renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+
+      return {
+        ok: true,
+        ...data
+      };
+    }
+
+    async function saveGachaResultsToServer(figures) {
+      if (!gachaTicket) {
+        return { ok: false };
+      }
+
+      const data = await callNewsApiFromGacha("saveGachaResults", {
+        ticket: gachaTicket,
+        results: figures.map(figure => ({
+          id: figure.id,
+          no: figure.no,
+          name: figure.name,
+          rarity: figure.rarity,
+          concept: figure.concept,
+          image: figure.image
+        }))
+      });
+
+      return data;
+    }
+
+    function drawMultipleFigures(count) {
+      const results = [];
+
+      for (let i = 0; i < count; i++) {
+        results.push(weightedDraw(FIGURES));
+      }
+
+      return results;
     }
 
     async function spinMultiGacha() {
@@ -1164,16 +1258,6 @@
 
                 const result = weightedDraw(FIGURES);
 
-        function drawMultipleFigures(count) {
-  const results = [];
-
-  for (let i = 0; i < count; i++) {
-    results.push(weightedDraw(FIGURES));
-  }
-
-  return results;
-}
-
         // まずはローカルにも反映
         inventory[result.id] = (inventory[result.id] || 0) + 1;
         totalSpins += 1;
@@ -1203,7 +1287,7 @@
         machineTop.classList.remove('spinning');
         handleWrap.classList.remove('spinning');
         spinBtn.disabled = false;
-        spinBtn.textContent = 'ガチャを回す';
+        spinBtn.textContent = '1回引く';
         spinning = false;
       }
     }
@@ -1251,6 +1335,6 @@ if (multiSpinBtn) {
     loadGachaCollectionFromServer().catch(err => {
       console.error("コレクション履歴の取得に失敗しました:", err);
     });
-  <script src="./app.js?v=10"></script>
+  </script>
 </body>
 </html>
