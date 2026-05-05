@@ -613,7 +613,8 @@
                 <div class="handle-knob"></div>
               </div>
             </div>
-            <button id="spinBtn" class="spin-btn">ガチャを回す</button>
+            <button id="spinBtn" class="spin-btn">1回引く</button>
+            <button id="multiSpinBtn" class="spin-btn" type="button">10連で引く</button>
           </div>
         </div>
       </div>
@@ -689,17 +690,22 @@
     }
 
     function renderNewsPoints(pointsValue) {
-      const points = Number(pointsValue || 0);
-      const safePoints = Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
+  const points = Number(pointsValue || 0);
+  const safePoints = Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
 
-      const el = document.getElementById("newsPoints");
-      if (!el) {
-        console.warn("#newsPoints が見つかりません。");
-        return;
-      }
+  latestNewsPoints = safePoints;
 
-      el.textContent = `${safePoints}pt`;
-    }
+  const el = findPointElement();
+
+  if (!el) {
+    console.warn("pt表示用の要素が見つかりません。id='newsPoints' をHTMLに追加してください。");
+    return;
+  }
+
+  el.textContent = `${safePoints}pt`;
+
+  updateMultiSpinButton(safePoints);
+}
 
     async function loadNewsPointsForGacha() {
       if (!gachaTicket) {
@@ -757,6 +763,89 @@
         ...data
       };
     }
+
+    async function spinMultiGacha() {
+  if (spinning) return;
+
+  const availablePoints = Number(latestNewsPoints || 0);
+  const drawCount = Math.min(10, Math.max(0, Math.floor(availablePoints)));
+
+  if (drawCount <= 0) {
+    alert("ptが不足しています。");
+    return;
+  }
+
+  const multiBtn = document.getElementById("multiSpinBtn");
+
+  spinning = true;
+  if (spinBtn) spinBtn.disabled = true;
+  if (multiBtn) {
+    multiBtn.disabled = true;
+    multiBtn.textContent = "pt確認中...";
+  }
+
+  try {
+    const pointResult = await consumePointsBeforeMultiGacha(drawCount);
+
+    if (!pointResult.ok) {
+      return;
+    }
+
+    const actualDrawCount = Number(pointResult.drawCount || drawCount);
+
+    if (multiBtn) {
+      multiBtn.textContent = `${actualDrawCount}連抽選中...`;
+    }
+
+    machineTop.classList.add('spinning');
+    handleWrap.classList.add('spinning');
+    resultModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    resultStage.innerHTML = '<div class="capsule"></div>';
+
+    await new Promise(resolve => setTimeout(resolve, 1400));
+
+    const results = drawMultipleFigures(actualDrawCount);
+
+    results.forEach(result => {
+      inventory[result.id] = (inventory[result.id] || 0) + 1;
+    });
+
+    totalSpins += results.length;
+    saveState();
+
+    const savedResult = await saveGachaResultsToServer(results);
+
+    if (savedResult && savedResult.ok) {
+      applyServerCollection(savedResult);
+    } else {
+      console.warn("saveGachaResults failed:", savedResult);
+      alert("ガチャ結果のサーバー保存に失敗しました。結果はこの端末には保存されています。");
+    }
+
+    machineTop.classList.remove('spinning');
+    handleWrap.classList.remove('spinning');
+
+    renderMultiResult(results);
+    renderTab();
+
+  } catch (err) {
+    console.error("10連ガチャ処理中のエラー:", err);
+    alert("10連ガチャ処理中にエラーが発生しました。");
+
+  } finally {
+    machineTop.classList.remove('spinning');
+    handleWrap.classList.remove('spinning');
+
+    spinning = false;
+
+    if (spinBtn) spinBtn.disabled = false;
+    if (multiBtn) {
+      multiBtn.disabled = false;
+      updateMultiSpinButton(latestNewsPoints || 0);
+    }
+  }
+}
 
         async function getGachaCollectionFromServer() {
       if (!gachaTicket) {
@@ -854,6 +943,36 @@
 
       return data;
     }
+
+    function renderMultiResult(results) {
+  const html = results.map(figure => {
+    const count = inventory[figure.id] || 0;
+
+    return `
+      <div class="item" style="width:100%; text-align:left;">
+        <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
+        <div class="item-main">
+          <div class="item-row">
+            <div><strong>${figure.no}</strong></div>
+            <span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span>
+          </div>
+          <div class="item-name">${figure.name}</div>
+          <div class="item-text">${figure.concept}</div>
+        </div>
+        <div class="item-count">所持数: ${count}</div>
+      </div>
+    `;
+  }).join("");
+
+  resultStage.innerHTML = `
+    <div style="width:100%; display:grid; gap:10px;">
+      ${html}
+    </div>
+  `;
+
+  resultModal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
 
     const FIGURES = [
       { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
@@ -1045,6 +1164,16 @@
 
                 const result = weightedDraw(FIGURES);
 
+        function drawMultipleFigures(count) {
+  const results = [];
+
+  for (let i = 0; i < count; i++) {
+    results.push(weightedDraw(FIGURES));
+  }
+
+  return results;
+}
+
         // まずはローカルにも反映
         inventory[result.id] = (inventory[result.id] || 0) + 1;
         totalSpins += 1;
@@ -1109,6 +1238,10 @@
     });
 
         spinBtn.addEventListener('click', spinGacha);
+    const multiSpinBtn = document.getElementById("multiSpinBtn");
+if (multiSpinBtn) {
+  multiSpinBtn.addEventListener("click", spinMultiGacha);
+}
     renderTab();
 
     loadNewsPointsForGacha().catch(err => {
