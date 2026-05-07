@@ -882,7 +882,7 @@
     }
 
     function renderGachaLoadingAnimation(titleText, subText) {
-  const title = titleText || "ガチャ演出中";
+  const title = titleText || "ガチャ抽選中";
   const sub = subText || "カプセルを準備しています";
 
   resultStage.innerHTML = `
@@ -1127,7 +1127,7 @@
     handleWrap.classList.add('spinning');
     resultModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    renderGachaLoadingAnimation(`${actualDrawCount}連ガチャ演出中`, "まとめてカプセルを準備しています");
+    renderGachaLoadingAnimation(`${actualDrawCount}連ガチャ抽選中`, "まとめてカプセルを準備しています");
 
     await new Promise(resolve => setTimeout(resolve, 1400));
 
@@ -1484,7 +1484,7 @@
         handleWrap.classList.add('spinning');
         resultModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
-        renderGachaLoadingAnimation("1回ガチャ演出中", "カプセルを取り出しています");
+        renderGachaLoadingAnimation("1回ガチャ抽選中", "カプセルを取り出しています");
 
         await new Promise(resolve => setTimeout(resolve, 1400));
 
