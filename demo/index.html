@@ -779,9 +779,193 @@
       .item { align-items: flex-start; }
       .item-count { min-width: 42px; }
     }
+
+    /* =========================
+   ガチャボタン横並び
+========================= */
+
+.gacha-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, 100%);
+  margin-top: 22px;
+  position: relative;
+  z-index: 2;
+}
+
+.gacha-actions .spin-btn {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* =========================
+   スマホ時：ガチャ画面を1画面に収める
+========================= */
+
+@media (max-width: 640px) {
+  body.is-gacha-page {
+    overflow: hidden;
+  }
+
+  body.is-gacha-page .wrap {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  body.is-gacha-page .top {
+    flex: 0 0 auto;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  body.is-gacha-page h1 {
+    font-size: 24px;
+  }
+
+  body.is-gacha-page .status-row {
+    gap: 8px;
+  }
+
+  body.is-gacha-page .pill,
+  body.is-gacha-page .point-box {
+    padding: 8px 10px;
+    border-radius: 14px;
+    font-size: 13px;
+  }
+
+  body.is-gacha-page .nav-tabs {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+    padding: 6px;
+    gap: 6px;
+    border-radius: 18px;
+  }
+
+  body.is-gacha-page .nav-btn {
+    padding: 9px 8px;
+    font-size: 13px;
+    border-radius: 13px;
+  }
+
+  body.is-gacha-page #gachaPage.page.active {
+    flex: 1;
+    min-height: 0;
+    display: block;
+  }
+
+  body.is-gacha-page #gachaPage .card {
+    height: 100%;
+    min-height: 0;
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-layout {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body.is-gacha-page #gachaPage .machine-box {
+    height: 100%;
+    min-height: 0;
+    padding: 10px 12px 12px;
+    border-radius: 22px;
+    justify-content: center;
+  }
+
+  body.is-gacha-page #gachaPage .machine-stage {
+    width: 220px;
+    height: 282px;
+    flex: 0 0 auto;
+  }
+
+  body.is-gacha-page #gachaPage .machine-body {
+    border-radius: 30px 30px 24px 24px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-top {
+    width: 146px;
+    height: 146px;
+    top: 14px;
+    border-width: 8px;
+  }
+
+  body.is-gacha-page #gachaPage .capsule-dots {
+    padding: 28px;
+    gap: 7px;
+  }
+
+  body.is-gacha-page #gachaPage .dot {
+    width: 22px;
+    height: 22px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-slot {
+    bottom: 72px;
+    width: 94px;
+    height: 14px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-tray {
+    bottom: 20px;
+    width: 126px;
+    height: 50px;
+    border-width: 4px;
+    border-radius: 18px;
+  }
+
+  body.is-gacha-page #gachaPage .handle-wrap {
+    top: 120px;
+    right: -8px;
+    width: 76px;
+    height: 76px;
+  }
+
+  body.is-gacha-page #gachaPage .handle-rod {
+    right: 28px;
+    top: 32px;
+    width: 40px;
+    height: 9px;
+  }
+
+  body.is-gacha-page #gachaPage .handle-knob {
+    width: 38px;
+    height: 38px;
+    top: 14px;
+  }
+
+  body.is-gacha-page #gachaPage .shine {
+    inset: auto 30px 62px 30px;
+    height: 78px;
+  }
+
+  body.is-gacha-page .gacha-actions {
+    width: min(340px, 100%);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  body.is-gacha-page .gacha-actions .spin-btn {
+    width: 100%;
+    padding: 13px 8px;
+    font-size: 14px;
+    border-radius: 16px;
+  }
+}
+    
   </style>
 </head>
-<body>
+<body class="is-gacha-page">
   <div class="wrap">
     <div class="top">
       <div>
@@ -820,8 +1004,10 @@
                 <div class="handle-knob"></div>
               </div>
             </div>
-            <button id="spinBtn" class="spin-btn" type="button">1回引く</button>
-            <button id="multiSpinBtn" class="spin-btn" type="button">10連で引く</button>
+            <div class="gacha-actions">
+  <button id="spinBtn" class="spin-btn">1回引く</button>
+  <button id="multiSpinBtn" class="spin-btn" type="button">10連で引く</button>
+</div>
           </div>
         </div>
       </div>
@@ -1390,12 +1576,20 @@
     });
 
     document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const pageId = btn.dataset.page;
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b === btn));
-        document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === pageId));
-      });
+  btn.addEventListener('click', () => {
+    const pageId = btn.dataset.page;
+
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.classList.toggle('active', b === btn);
     });
+
+    document.querySelectorAll('.page').forEach(page => {
+      page.classList.toggle('active', page.id === pageId);
+    });
+
+    document.body.classList.toggle('is-gacha-page', pageId === 'gachaPage');
+  });
+});
 
     closeModalBtn.addEventListener('click', () => {
       resultModal.style.display = 'none';
