@@ -1111,6 +1111,16 @@
     const returnUrl = gachaParams.get("returnUrl") || "";
     let latestNewsPoints = null;
 
+    const GACHA_ASSET_VERSION = "1";
+
+    function assetUrl(url) {
+      const raw = String(url || "").trim();
+      if (!raw) return raw;
+      if (/^https?:\/\//i.test(raw)) return raw;
+      const sep = raw.includes("?") ? "&" : "?";
+      return `${raw}${sep}v=${encodeURIComponent(GACHA_ASSET_VERSION)}`;
+    }
+
     function findPointElement() {
       return (
         document.getElementById("newsPoints") ||
@@ -1416,7 +1426,7 @@
         const count = inventory[figure.id] || 0;
         const owned = count > 0;
         const imgClass = owned ? 'thumb' : 'thumb locked';
-        const imgSrc = owned ? figure.image : 'https://placehold.co/120x120?text=LOCK';
+        const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
         const name = owned ? figure.name : '未獲得';
         const text = owned ? figure.concept : 'ガチャで引くと公開されます';
         const figureNo = `No.${index + 1}`;
@@ -1440,7 +1450,7 @@
         const figureNo = `No.${index + 1}`;
         return `
         <div class="item">
-          <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
+          <img class="thumb" src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
           <div class="item-main">
             <div class="item-row"><div><strong>${figureNo}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
             <div class="item-name">${figure.name}</div>
@@ -1465,7 +1475,7 @@
       const figureNo = getFigureNo(figure);
       resultStage.innerHTML = `
         <div class="figure-card figure-card--single">
-          <img src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figureNo)}'">
+          <img src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figureNo)}'">
           <div class="badge ${figure.rarity}">${figure.rarity}</div>
           <div class="figure-name">${figureNo} ${figure.name}</div>
         </div>
@@ -1479,7 +1489,7 @@
         const figureNo = getFigureNo(figure);
         return `
           <div class="result-tile" title="${figureNo} ${figure.name}">
-            <img src="${figure.image}" alt="${figureNo} ${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
+            <img src="${assetUrl(figure.image)}" alt="${figureNo} ${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
             <span class="result-tile-badge badge ${figure.rarity}">${figure.rarity}</span>
           </div>
         `;
