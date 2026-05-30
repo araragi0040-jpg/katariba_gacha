@@ -92,8 +92,9 @@
     }
 
     .nav-tabs {
-      display: inline-grid;
+      display: grid;
       grid-template-columns: 1fr 1fr;
+      width: min(360px, 100%);
       gap: 8px;
       padding: 8px;
       background: rgba(255,255,255,0.7);
@@ -109,6 +110,7 @@
       background: transparent;
       color: #334155;
       padding: 14px 18px;
+      min-width: 0;
       border-radius: 16px;
       font-weight: 700;
       font-size: 15px;
@@ -369,6 +371,12 @@
       z-index: 1;
     }
 
+    .figure-card--single {
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
     @keyframes pop {
       from { transform: scale(0.84) translateY(20px); opacity: 0; }
       to { transform: scale(1) translateY(0); opacity: 1; }
@@ -412,6 +420,44 @@
     .count {
       margin-top: 8px;
       font-weight: 700;
+    }
+
+    .result-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .result-tile {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid rgba(226,232,240,0.9);
+      box-shadow: var(--shadow-soft);
+      aspect-ratio: 1 / 1;
+    }
+
+    .result-tile img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .result-tile-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      margin: 0;
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(3px);
     }
 
     .progress-wrap {
@@ -1056,14 +1102,24 @@
   </div>
 
   <script>
-    const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbzyL-rkQTcM_GijeBRHFZT3vfsv58xkQIZFAI6PPPC8IFQ50OB62DJrriiWjOLMyZAE/exec";
-    const DEFAULT_NEWS_SITE_URL = "https://community-news-pwa.vercel.app/";
+    const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
+    const DEFAULT_NEWS_SITE_URL = "https://araragi0040-jpg.github.io/community-news-pwa/demo/";
 
     const gachaParams = new URLSearchParams(window.location.search);
     const gachaTicket = gachaParams.get("ticket");
     const isAdmin = gachaParams.get("admin") === "1";
     const returnUrl = gachaParams.get("returnUrl") || "";
     let latestNewsPoints = null;
+
+    const GACHA_ASSET_VERSION = "4";
+
+    function assetUrl(url) {
+      const raw = String(url || "").trim();
+      if (!raw) return raw;
+      if (/^https?:\/\//i.test(raw)) return raw;
+      const sep = raw.includes("?") ? "&" : "?";
+      return `${raw}${sep}v=${encodeURIComponent(GACHA_ASSET_VERSION)}`;
+    }
 
     function findPointElement() {
       return (
@@ -1198,6 +1254,19 @@
       return { ok: true, ...data };
     }
 
+    async function refundPointsAfterFailedSave(count) {
+      if (!gachaTicket) return { ok: false };
+      const safeCount = Math.max(1, Math.min(10, Math.floor(Number(count || 1))));
+      const data = await callNewsApiFromGacha("refundGachaPoints", {
+        ticket: gachaTicket,
+        count: safeCount
+      });
+      if (data && data.ok) {
+        renderNewsPoints(data.remainingPoints ?? data.points ?? latestNewsPoints ?? 0);
+      }
+      return data;
+    }
+
     async function getGachaCollectionFromServer() {
       if (!gachaTicket) return { ok: false };
       return await callNewsApiFromGacha("getGachaCollection", { ticket: gachaTicket });
@@ -1211,10 +1280,15 @@
       renderTab();
     }
 
+    function getFigureNo(figure) {
+      const index = FIGURES.findIndex(item => item.id === figure.id);
+      return `No.${index >= 0 ? index + 1 : "?"}`;
+    }
+
     function buildLocalImportItems() {
       return FIGURES.map(figure => {
         const count = Number(inventory[figure.id] || 0);
-        return { id: figure.id, no: figure.no, name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image, count };
+        return { id: figure.id, no: getFigureNo(figure), name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image, count };
       }).filter(item => item.count > 0);
     }
 
@@ -1241,7 +1315,7 @@
       if (!gachaTicket) return { ok: false };
       return await callNewsApiFromGacha("saveGachaResult", {
         ticket: gachaTicket,
-        result: { id: figure.id, no: figure.no, name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image }
+        result: { id: figure.id, no: getFigureNo(figure), name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image }
       });
     }
 
@@ -1249,7 +1323,7 @@
       if (!gachaTicket) return { ok: false };
       return await callNewsApiFromGacha("saveGachaResults", {
         ticket: gachaTicket,
-        results: figures.map(figure => ({ id: figure.id, no: figure.no, name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image }))
+        results: figures.map(figure => ({ id: figure.id, no: getFigureNo(figure), name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image }))
       });
     }
 
@@ -1260,37 +1334,45 @@
     }
 
     const FIGURES = [
-      { id: 1, no: 'No.1', name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
-      { id: 2, no: 'No.2', name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/よっしー_N.png' },
-      { id: 3, no: 'No.3', name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/じんさん_N.png' },
-      { id: 4, no: 'No.4', name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ケンさん_N.png' },
-      { id: 5, no: 'No.5', name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/しゅう_N.png' },
-      { id: 6, no: 'No.6', name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/とっとくん_N.png' },
-      { id: 7, no: 'No.7', name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/かずま_N.png' },
-      { id: 8, no: 'No.8', name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },
-      { id: 9, no: 'No.9', name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png' },
-      { id: 10, no: 'No.10', name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png' },
-      { id: 11, no: 'No.11', name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/おかっち_N.png' },
-      { id: 12, no: 'No.12', name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },
-      { id: 13, no: 'No.13', name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png' },
-      { id: 14, no: 'No.14', name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/東さん_ガンプラ.png' },
-      { id: 15, no: 'No.15', name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/よっしー_LS撮影.png' },
-      { id: 16, no: 'No.16', name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/じんさん_ボドゲ.png' },
-      { id: 17, no: 'No.17', name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/ケンさん_講演.png' },
-      { id: 18, no: 'No.18', name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/しゅう_乾杯.png' },
-      { id: 19, no: 'No.19', name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/とっとくん_ハウスクリーニング.png' },
-      { id: 20, no: 'No.20', name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/かずま_内臓整体.png' },
-      { id: 21, no: 'No.21', name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/だいちさん_占い中.png' },
-      { id: 22, no: 'No.22', name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/ゆかちゃん_占い中.png' },
-      { id: 23, no: 'No.23', name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/おかっち_よもぎ蒸し.png' },
-      { id: 24, no: 'No.24', name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/ぐっちょん_会計.png' },
-      { id: 25, no: 'No.25', name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/東さん_編集長.png' },
-      { id: 26, no: 'No.26', name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/よっしー_書籍出版.png' },
-      { id: 27, no: 'No.27', name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/じんさん_木工.png' },
-      { id: 28, no: 'No.28', name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/ケンさん_ベース演奏.png' },
-      { id: 29, no: 'No.29', name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/しゅう_MC.png' },
-      { id: 30, no: 'No.30', name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png' },
-      { id: 31, no: 'No.31', name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png' }
+      { id: 1, name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
+      { id: 2, name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/よっしー_N.png' },
+      { id: 3, name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/じんさん_N.png' },
+      { id: 4, name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ケンさん_N.png' },
+      { id: 5, name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/しゅう_N.png' },
+      { id: 6, name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/とっとくん_N.png' },
+      { id: 7, name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/かずま_N.png' },
+      { id: 8, name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },
+      { id: 9, name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png' },
+      { id: 10, name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png' },
+      { id: 11, name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/おかっち_N.png' },
+      { id: 12, name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },
+      { id: 13, name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png' },
+      { id: 14, name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/東さん_ガンプラ.png' },
+      { id: 15, name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/よっしー_LS撮影.png' },
+      { id: 16, name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/じんさん_ボドゲ.png' },
+      { id: 17, name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/ケンさん_講演.png' },
+      { id: 18, name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/しゅう_乾杯.png' },
+      { id: 19, name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/とっとくん_ハウスクリーニング.png' },
+      { id: 20, name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/かずま_内臓整体.png' },
+      { id: 32, name: 'たかちゃん', rarity: 'R', dropRate: 18, concept: '焼酎呑み', image: 'images/たかちゃん_赤兎馬.png' },
+      { id: 21, name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/だいちさん_占い中.png' },
+      { id: 22, name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/ゆかちゃん_占い中.png' },
+      { id: 23, name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/おかっち_よもぎ蒸し.png' },
+      { id: 37, name: 'だいちゃん', rarity: 'R', dropRate: 18, concept: 'オンライン講座', image: 'images/だいちゃん_オンライン講座.png' },
+      { id: 24, name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/ぐっちょん_会計.png' },
+      { id: 25, name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/東さん_編集長.png' },
+      { id: 26, name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/よっしー_書籍出版.png' },
+      { id: 27, name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/じんさん_木工.png' },
+      { id: 28, name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/ケンさん_ベース演奏.png' },
+      { id: 29, name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/しゅう_MC.png' },
+      { id: 30, name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png' },
+      { id: 33, name: 'たかちゃん', rarity: 'SR', dropRate: 10, concept: 'オンライン講座', image: 'images/たかちゃん_オンライン講座.png' },
+      { id: 38, name: 'だいちさん', rarity: 'SR', dropRate: 10, concept: 'シェアハウスの日常', image: 'images/だいちさん_シェアハウス日常.png' },
+      { id: 34, name: 'ゆかちゃん', rarity: 'SR', dropRate: 10, concept: 'あべちゃんメイク', image: 'images/ゆか_あべちゃんメイク.png' },
+      { id: 35, name: 'おかっち', rarity: 'SR', dropRate: 10, concept: 'パンプアップ', image: 'images/おかっち_ジム.png' },
+      { id: 39, name: 'だいちゃん', rarity: 'SR', dropRate: 10, concept: 'ライブ配信', image: 'images/だいちゃん_ライブ配信.png' },
+      { id: 36, name: 'ぐっちょん', rarity: 'SR', dropRate: 10, concept: '本収集', image: 'images/ぐっちょん_本収集.png' },
+      { id: 31, name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png' }
     ];
 
     const STORAGE_KEY = 'katariba_gacha_inventory_v2';
@@ -1347,18 +1429,19 @@
     }
 
     function renderCollectionTab() {
-      const html = FIGURES.map(figure => {
+      const html = FIGURES.map((figure, index) => {
         const count = inventory[figure.id] || 0;
         const owned = count > 0;
         const imgClass = owned ? 'thumb' : 'thumb locked';
-        const imgSrc = owned ? figure.image : 'https://placehold.co/120x120?text=LOCK';
+        const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
         const name = owned ? figure.name : '未獲得';
         const text = owned ? figure.concept : 'ガチャで引くと公開されます';
+        const figureNo = `No.${index + 1}`;
         return `
           <div class="item">
             <img class="${imgClass}" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/120x120?text=?'">
             <div class="item-main">
-              <div class="item-row"><div><strong>${figure.no}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
+              <div class="item-row"><div><strong>${figureNo}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
               <div class="item-name">${name}</div>
               <div class="item-text">${text}</div>
             </div>
@@ -1370,17 +1453,20 @@
     }
 
     function renderRatesTab() {
-      const html = FIGURES.map(figure => `
+      const html = FIGURES.map((figure, index) => {
+        const figureNo = `No.${index + 1}`;
+        return `
         <div class="item">
-          <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
+          <img class="thumb" src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
           <div class="item-main">
-            <div class="item-row"><div><strong>${figure.no}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
+            <div class="item-row"><div><strong>${figureNo}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
             <div class="item-name">${figure.name}</div>
             <div class="item-text">${figure.concept}</div>
           </div>
           <div class="item-count">${figure.dropRate}%</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
       tabContent.innerHTML = `<div class="list">${html}</div>`;
     }
 
@@ -1393,14 +1479,12 @@
     }
 
     function renderResult(figure) {
-      const count = inventory[figure.id] || 0;
+      const figureNo = getFigureNo(figure);
       resultStage.innerHTML = `
-        <div class="figure-card">
-          <img src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figure.no)}'">
+        <div class="figure-card figure-card--single">
+          <img src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figureNo)}'">
           <div class="badge ${figure.rarity}">${figure.rarity}</div>
-          <div class="figure-name">${figure.no} ${figure.name}</div>
-          <div class="figure-text">${figure.concept}</div>
-          <div class="count">所持数: ${count}</div>
+          <div class="figure-name">${figureNo} ${figure.name}</div>
         </div>
       `;
       resultModal.style.display = 'flex';
@@ -1409,20 +1493,15 @@
 
     function renderMultiResult(results) {
       const html = results.map(figure => {
-        const count = inventory[figure.id] || 0;
+        const figureNo = getFigureNo(figure);
         return `
-          <div class="item" style="width:100%; text-align:left;">
-            <img class="thumb" src="${figure.image}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figure.no)}'">
-            <div class="item-main">
-              <div class="item-row"><div><strong>${figure.no}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
-              <div class="item-name">${figure.name}</div>
-              <div class="item-text">${figure.concept}</div>
-            </div>
-            <div class="item-count">所持数: ${count}</div>
+          <div class="result-tile" title="${figureNo} ${figure.name}">
+            <img src="${assetUrl(figure.image)}" alt="${figureNo} ${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
+            <span class="result-tile-badge badge ${figure.rarity}">${figure.rarity}</span>
           </div>
         `;
       }).join('');
-      resultStage.innerHTML = `<div style="width:100%; display:grid; gap:10px;">${html}</div>`;
+      resultStage.innerHTML = `<div class="result-grid">${html}</div>`;
       resultModal.style.display = 'flex';
       document.body.style.overflow = 'hidden';
     }
@@ -1457,7 +1536,11 @@
           applyServerCollection(savedResult);
         } else {
           console.warn('saveGachaResult failed:', savedResult);
-          alert('ガチャ結果のサーバー保存に失敗しました。結果はこの端末には保存されています。');
+          const refundResult = await refundPointsAfterFailedSave(1);
+          if (!refundResult || !refundResult.ok) {
+            console.warn('refundGachaPoints failed:', refundResult);
+          }
+          alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
         }
 
         renderResult(result);
@@ -1518,7 +1601,11 @@
           applyServerCollection(savedResult);
         } else {
           console.warn('saveGachaResults failed:', savedResult);
-          alert('ガチャ結果のサーバー保存に失敗しました。結果はこの端末には保存されています。');
+          const refundResult = await refundPointsAfterFailedSave(results.length);
+          if (!refundResult || !refundResult.ok) {
+            console.warn('refundGachaPoints failed:', refundResult);
+          }
+          alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
         }
 
         renderMultiResult(results);
@@ -1549,7 +1636,7 @@
       try {
         const url = new URL(raw, window.location.href);
         const allowedOrigins = [
-          'https://community-news-pwa.vercel.app',
+          'https://araragi0040-jpg.github.io/community-news-pwa/demo/',
           window.location.origin
         ];
         if (allowedOrigins.includes(url.origin)) return url.toString();
