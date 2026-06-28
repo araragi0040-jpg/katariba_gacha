@@ -2945,6 +2945,168 @@ function importLocalGachaInventory(ticket, items) {
   return getGachaCollection(ticket);
 }
 
+const GACHA_LEGACY_DUPLICATE_MIGRATION_PROPERTY = "GACHA_LEGACY_DUPLICATE_EXCHANGE_POINTS_V1";
+
+function buildLegacyDuplicateExchangePointMigrationPlan_() {
+  const inventorySheet = ensureGachaInventorySheet();
+  const inventoryValues = inventorySheet.getDataRange().getValues();
+  if (inventoryValues.length < 2) return [];
+
+  const inventoryHeaders = inventoryValues[0];
+  const inventoryRows = inventoryValues.slice(1).map(row => rowToObj(inventoryHeaders, row));
+  const masterById = {};
+  getGachaFigureMaster_().forEach(item => {
+    masterById[String(item.figureId)] = item;
+  });
+
+  // 同一ユーザー・同一figureIdの行が複数あっても、合計数量から重複数を1回だけ計算する。
+  const quantityByUserFigure = {};
+  inventoryRows.forEach(row => {
+    const userId = String(row.userId || "").trim();
+    const figureId = String(row.figureId || "").trim();
+    const quantity = Math.max(0, Math.floor(Number(row.quantity || 0)));
+    if (!userId || !figureId || quantity <= 0) return;
+    const key = userId + "||" + figureId;
+    if (!quantityByUserFigure[key]) {
+      quantityByUserFigure[key] = { userId: userId, figureId: figureId, quantity: 0 };
+    }
+    quantityByUserFigure[key].quantity += quantity;
+  });
+
+  const planMap = {};
+  Object.keys(quantityByUserFigure).forEach(key => {
+    const entry = quantityByUserFigure[key];
+    const master = masterById[entry.figureId];
+    if (!master || master.isEx || !master.isActive) return;
+
+    const duplicateUnitPoint = Math.max(0, Math.floor(Number(DUPLICATE_POINT_BY_RARITY[master.rarity] || 0)));
+    const duplicateQuantity = Math.max(0, entry.quantity - 1);
+    if (duplicateUnitPoint <= 0 || duplicateQuantity <= 0) return;
+
+    const planKey = entry.userId + "||" + master.seriesId;
+    if (!planMap[planKey]) {
+      planMap[planKey] = {
+        userId: entry.userId,
+        seriesId: master.seriesId,
+        duplicateQuantity: 0,
+        calculatedPoints: 0
+      };
+    }
+    planMap[planKey].duplicateQuantity += duplicateQuantity;
+    planMap[planKey].calculatedPoints += duplicateQuantity * duplicateUnitPoint;
+  });
+
+  const pointsSheet = ensureGachaExchangePointsSheet_();
+  const pointValues = pointsSheet.getDataRange().getValues();
+  const pointHeaders = pointValues[0] || [];
+  const currentMap = {};
+  pointValues.slice(1).map(row => rowToObj(pointHeaders, row)).forEach(row => {
+    const userId = String(row.userId || "").trim();
+    const seriesId = String(row.seriesId || "").trim();
+    if (!userId || !seriesId) return;
+    currentMap[userId + "||" + seriesId] = Math.max(0, Math.floor(Number(row.exchangePoints || 0)));
+  });
+
+  return Object.keys(planMap).map(key => ({
+    userId: planMap[key].userId,
+    seriesId: planMap[key].seriesId,
+    duplicateQuantity: planMap[key].duplicateQuantity,
+    calculatedPoints: planMap[key].calculatedPoints,
+    currentPoints: Math.max(0, Math.floor(Number(currentMap[key] || 0)))
+  })).sort((a, b) => {
+    const userCompare = String(a.userId).localeCompare(String(b.userId));
+    if (userCompare !== 0) return userCompare;
+    return String(a.seriesId).localeCompare(String(b.seriesId));
+  });
+}
+
+function getExistingNonZeroExchangePointRows_() {
+  const sheet = ensureGachaExchangePointsSheet_();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const headers = values[0];
+  return values.slice(1)
+    .map(row => rowToObj(headers, row))
+    .filter(row => Math.max(0, Math.floor(Number(row.exchangePoints || 0))) > 0)
+    .map(row => ({
+      userId: String(row.userId || ""),
+      seriesId: String(row.seriesId || ""),
+      exchangePoints: Math.max(0, Math.floor(Number(row.exchangePoints || 0)))
+    }));
+}
+
+/**
+ * Apps Scriptエディタから手動実行する、既存重複分の交換pt移行プレビュー。
+ * 実データは変更しない。
+ */
+function previewExistingDuplicateExchangePointsMigration() {
+  const properties = PropertiesService.getScriptProperties();
+  const migratedAt = properties.getProperty(GACHA_LEGACY_DUPLICATE_MIGRATION_PROPERTY) || "";
+  const plan = buildLegacyDuplicateExchangePointMigrationPlan_();
+  return {
+    ok: true,
+    alreadyMigrated: !!migratedAt,
+    migratedAt: migratedAt,
+    targetUsers: Array.from(new Set(plan.map(item => item.userId))).length,
+    targetRows: plan.length,
+    totalDuplicateQuantity: plan.reduce((sum, item) => sum + Number(item.duplicateQuantity || 0), 0),
+    totalCalculatedPoints: plan.reduce((sum, item) => sum + Number(item.calculatedPoints || 0), 0),
+    existingNonZeroPointRows: getExistingNonZeroExchangePointRows_(),
+    plan: plan
+  };
+}
+
+/**
+ * 既存のGachaInventory数量から、(quantity - 1) × レア度別pt をシリーズ別に付与する。
+ * 新しい交換pt運用を始める前、gacha_exchange_pointsが空または全て0の状態で1回だけ実行する。
+ */
+function migrateExistingDuplicateExchangePoints() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const migratedAt = properties.getProperty(GACHA_LEGACY_DUPLICATE_MIGRATION_PROPERTY) || "";
+    if (migratedAt) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "already_migrated",
+        migratedAt: migratedAt
+      };
+    }
+
+    const existingNonZero = getExistingNonZeroExchangePointRows_();
+    if (existingNonZero.length > 0) {
+      throw fail(
+        "すでに交換ptが付与されています。二重付与防止のため、移行処理を停止しました。交換開始前の空データで実行してください。",
+        "MIGRATION_REQUIRES_EMPTY_EXCHANGE_POINTS"
+      );
+    }
+
+    const plan = buildLegacyDuplicateExchangePointMigrationPlan_();
+    plan.forEach(item => {
+      if (Number(item.calculatedPoints || 0) <= 0) return;
+      setExchangePointBalance_(item.userId, item.seriesId, item.calculatedPoints);
+    });
+
+    const completedAt = formatDateTime(new Date());
+    properties.setProperty(GACHA_LEGACY_DUPLICATE_MIGRATION_PROPERTY, completedAt);
+
+    return {
+      ok: true,
+      skipped: false,
+      migratedAt: completedAt,
+      targetUsers: Array.from(new Set(plan.map(item => item.userId))).length,
+      updatedRows: plan.filter(item => Number(item.calculatedPoints || 0) > 0).length,
+      totalDuplicateQuantity: plan.reduce((sum, item) => sum + Number(item.duplicateQuantity || 0), 0),
+      totalGrantedPoints: plan.reduce((sum, item) => sum + Number(item.calculatedPoints || 0), 0),
+      plan: plan
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function previewGachaResultsMigration() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const resultsSheet = ss.getSheetByName("GachaResults");

@@ -1058,6 +1058,74 @@
     }
     .exchange-btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .exchange-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+    /* 未獲得・EXカードは、説明と交換操作を下段へ分けて読みやすくする */
+    .item--exchange {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      align-items: center;
+    }
+    .item--exchange .item-main { min-width: 0; }
+    .item--exchange .exchange-actions {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+      margin-top: 2px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      justify-items: stretch;
+      gap: 10px;
+      text-align: left;
+    }
+    .item--exchange .exchange-btn {
+      width: 100%;
+      min-height: 38px;
+    }
+    .item--exchange .exchange-note {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .item-text--exchange {
+      margin-top: 7px;
+      padding: 7px 9px;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.55;
+      word-break: normal;
+      overflow-wrap: break-word;
+    }
+    .item--ex {
+      border-color: rgba(244,114,182,0.28);
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(253,242,248,0.94));
+    }
+    .ex-status {
+      margin-top: 7px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(244,114,182,0.18);
+      display: grid;
+      gap: 3px;
+    }
+    .ex-status__title {
+      color: #9d174d;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+    .ex-status__sub {
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .ex-status--unlocked {
+      background: rgba(255,247,237,0.92);
+      border-color: rgba(251,146,60,0.24);
+    }
+    .ex-status--unlocked .ex-status__title { color: #9a3412; }
     .result-status {
       border-radius: 14px;
       padding: 10px 12px;
@@ -1094,8 +1162,30 @@
     }
     @media (max-width: 640px) {
       .item { gap: 10px; }
-      .exchange-actions { min-width: 104px; }
-      .exchange-btn { padding: 8px 8px; font-size: 11px; }
+      .item--exchange {
+        grid-template-columns: 72px minmax(0, 1fr);
+        align-items: start;
+      }
+      .item--exchange .thumb {
+        width: 72px;
+        height: 72px;
+        border-radius: 17px;
+      }
+      .item--exchange .exchange-actions {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .item--exchange .exchange-note {
+        text-align: left;
+        white-space: normal;
+      }
+      .exchange-btn { padding: 9px 10px; font-size: 12px; }
+      .item-text--exchange,
+      .ex-status__title,
+      .ex-status__sub {
+        word-break: normal;
+        overflow-wrap: break-word;
+      }
     }
 
   </style>
@@ -1654,7 +1744,7 @@
           const imgClass = owned ? 'thumb' : 'thumb locked';
           const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
           const name = owned ? figure.name : '未獲得';
-          const text = owned ? figure.concept : 'ガチャまたは交換で入手できます';
+          const text = owned ? figure.concept : 'ガチャ・交換で入手';
           const shortage = Math.max(0, Number(figure.exchangeCost || 0) - balance);
           const actionHtml = owned
             ? `<div class="item-count">x${count}</div>`
@@ -1663,12 +1753,12 @@
                 <div class="exchange-note">${shortage > 0 ? `あと${shortage}pt必要` : '交換できます'}</div>
               </div>`;
           return `
-            <div class="item">
+            <div class="item${owned ? '' : ' item--exchange'}">
               <img class="${imgClass}" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/120x120?text=?'">
               <div class="item-main">
                 <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
                 <div class="item-name">${name}</div>
-                <div class="item-text">${text}</div>
+                <div class="item-text${owned ? '' : ' item-text--exchange'}">${text}</div>
               </div>
               ${actionHtml}
             </div>`;
@@ -1679,24 +1769,24 @@
           const exOwned = Number(inventory[exFigure.id] || 0) > 0;
           const shortage = Math.max(0, Number(exFigure.exchangeCost || 50) - balance);
           const unlocked = isComplete;
-          const exText = exOwned
-            ? exFigure.concept
+          const exStatusHtml = exOwned
+            ? `<div class="ex-status"><div class="ex-status__title">交換済み</div><div class="ex-status__sub">${exFigure.concept}</div></div>`
             : unlocked
-              ? `EX交換が解放されました　現在${balance} / ${exFigure.exchangeCost}pt`
-              : `${seriesLabel}コンプリートで解放　交換には${exFigure.exchangeCost}pt必要です`;
+              ? `<div class="ex-status ex-status--unlocked"><div class="ex-status__title">EX交換が解放されました</div><div class="ex-status__sub">交換pt：${balance} / ${exFigure.exchangeCost}pt</div></div>`
+              : `<div class="ex-status"><div class="ex-status__title">${seriesLabel}コンプリートで解放</div><div class="ex-status__sub">必要交換pt：${exFigure.exchangeCost}pt</div></div>`;
           const exAction = exOwned
             ? `<div class="item-count">x1</div>`
             : `<div class="exchange-actions">
                 <button class="exchange-btn" type="button" data-exchange-figure="${exFigure.id}" ${!unlocked || balance < exFigure.exchangeCost || exchangeProcessing ? 'disabled' : ''}>${unlocked ? `${exFigure.exchangeCost}ptでEX交換` : '未解放'}</button>
-                <div class="exchange-note">${unlocked ? (shortage > 0 ? `あと${shortage}pt必要` : '交換できます') : '通常フィギュアを集めてください'}</div>
+                <div class="exchange-note">${unlocked ? (shortage > 0 ? `あと${shortage}pt必要` : '交換できます') : '通常フィギュアをすべて集めると解放'}</div>
               </div>`;
           exHtml = `
-            <div class="item">
+            <div class="item item--ex${exOwned ? '' : ' item--exchange'}">
               <img class="${exOwned ? 'thumb' : 'thumb locked'}" src="${exOwned ? assetUrl(exFigure.image) : 'https://placehold.co/120x120?text=EX'}" alt="EX" onerror="this.src='https://placehold.co/120x120?text=EX'">
               <div class="item-main">
                 <div class="item-row"><div><strong>${getFigureNo(exFigure)}</strong></div><span class="badge EX" style="margin-top:0;">EX</span></div>
                 <div class="item-name">${exOwned ? exFigure.name : `${seriesLabel}EX`}</div>
-                <div class="item-text">${exText}</div>
+                ${exStatusHtml}
               </div>
               ${exAction}
             </div>`;
