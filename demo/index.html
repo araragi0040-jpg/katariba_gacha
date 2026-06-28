@@ -7,6 +7,8 @@
   <style>
     * { box-sizing: border-box; }
 
+    html { scrollbar-gutter: stable; }
+
     :root {
       --bg1: #fff7ed;
       --bg2: #ffffff;
@@ -558,6 +560,11 @@
     }
 
     .thumb.locked { filter: grayscale(1); opacity: 0.34; }
+    .thumb--preview { cursor: zoom-in; }
+    .thumb--preview:focus-visible {
+      outline: 3px solid rgba(96,165,250,0.55);
+      outline-offset: 3px;
+    }
     .item-main { flex: 1; min-width: 0; }
     .item-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .item-name { font-weight: 700; margin-top: 4px; font-size: 15px; }
@@ -907,6 +914,22 @@
     display: block;
   }
 
+  body.is-gacha-page #collectionPage.page.active {
+    flex: 1;
+    min-height: 0;
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  body.is-gacha-page #collectionPage .card {
+    min-height: 100%;
+    padding: 10px;
+    border-radius: 22px;
+  }
+
   body.is-gacha-page #gachaPage .card {
     height: 100%;
     min-height: 0;
@@ -1202,6 +1225,63 @@
        交換確認ポップアップ
        ブラウザ標準confirm/alertを使わず、サイト名表示を出さない
     ========================= */
+    /* =========================
+       コレクション画像拡大表示
+    ========================= */
+    .collection-image-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10020;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .collection-image-modal.is-open { display: flex; }
+    .collection-image-modal__scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,23,42,0.72);
+      backdrop-filter: blur(6px);
+    }
+    .collection-image-modal__panel {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 94vw);
+      max-height: 90vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      border-radius: 26px;
+      background: rgba(255,255,255,0.98);
+      box-shadow: 0 28px 70px rgba(15,23,42,0.34);
+    }
+    .collection-image-modal__image {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      max-height: calc(90vh - 36px);
+      object-fit: contain;
+      border-radius: 20px;
+      background: #fff;
+    }
+    .collection-image-modal__close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.82);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
     .exchange-dialog {
       position: fixed;
       inset: 0;
@@ -1351,6 +1431,14 @@
     </div>
   </div>
 
+
+  <div id="collectionImageModal" class="collection-image-modal" aria-hidden="true">
+    <div id="collectionImageModalScrim" class="collection-image-modal__scrim"></div>
+    <div class="collection-image-modal__panel" role="dialog" aria-modal="true" aria-label="コレクション画像の拡大表示">
+      <button id="collectionImageModalClose" class="collection-image-modal__close" type="button" aria-label="閉じる">×</button>
+      <img id="collectionImageModalImage" class="collection-image-modal__image" src="" alt="">
+    </div>
+  </div>
 
   <div id="exchangeDialog" class="exchange-dialog" aria-hidden="true">
     <div id="exchangeDialogScrim" class="exchange-dialog__scrim"></div>
@@ -1662,6 +1750,54 @@
       return drawResult && drawResult.isNew ? "NEW" : `＋${point}pt`;
     }
 
+    function openCollectionImageModal(imageElement) {
+      const modal = document.getElementById("collectionImageModal");
+      const modalImage = document.getElementById("collectionImageModalImage");
+      const closeButton = document.getElementById("collectionImageModalClose");
+      if (!modal || !modalImage || !imageElement) return;
+
+      const src = imageElement.currentSrc || imageElement.src || "";
+      if (!src) return;
+
+      modalImage.src = src;
+      modalImage.alt = imageElement.alt || "コレクション画像";
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      if (closeButton) closeButton.focus();
+    }
+
+    function closeCollectionImageModal() {
+      const modal = document.getElementById("collectionImageModal");
+      const modalImage = document.getElementById("collectionImageModalImage");
+      if (!modal) return;
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+      if (modalImage) {
+        modalImage.src = "";
+        modalImage.alt = "";
+      }
+      document.body.style.overflow = "";
+    }
+
+    function bindCollectionImagePreview() {
+      if (!tabContent || tabContent.dataset.imagePreviewBound === "1") return;
+      tabContent.dataset.imagePreviewBound = "1";
+
+      tabContent.addEventListener("click", event => {
+        const image = event.target.closest("img[data-image-preview='1']");
+        if (!image) return;
+        openCollectionImageModal(image);
+      });
+
+      tabContent.addEventListener("keydown", event => {
+        const image = event.target.closest("img[data-image-preview='1']");
+        if (!image || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        openCollectionImageModal(image);
+      });
+    }
+
     function showExchangeDialog(options = {}) {
       const modal = document.getElementById("exchangeDialog");
       const title = document.getElementById("exchangeDialogTitle");
@@ -1917,8 +2053,9 @@
         const normalHtml = normalFigures.map(figure => {
           const count = Number(inventory[figure.id] || 0);
           const owned = count > 0;
-          const imgClass = owned ? 'thumb' : 'thumb locked';
+          const imgClass = owned ? 'thumb thumb--preview' : 'thumb locked';
           const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
+          const previewAttrs = owned ? 'data-image-preview="1" role="button" tabindex="0"' : '';
           const name = owned ? figure.name : '未獲得';
           const text = owned ? figure.concept : 'ガチャ・交換で入手';
           const shortage = Math.max(0, Number(figure.exchangeCost || 0) - balance);
@@ -1930,7 +2067,7 @@
               </div>`;
           return `
             <div class="item${owned ? '' : ' item--exchange'}">
-              <img class="${imgClass}" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/120x120?text=?'">
+              <img class="${imgClass}" src="${imgSrc}" alt="${name}" ${previewAttrs} onerror="this.src='https://placehold.co/120x120?text=?'">
               <div class="item-main">
                 <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
                 <div class="item-name">${name}</div>
@@ -1958,7 +2095,7 @@
               </div>`;
           exHtml = `
             <div class="item item--ex${exOwned ? '' : ' item--exchange'}">
-              <img class="${exOwned ? 'thumb' : 'thumb locked'}" src="${exOwned ? assetUrl(exFigure.image) : 'https://placehold.co/120x120?text=EX'}" alt="EX" onerror="this.src='https://placehold.co/120x120?text=EX'">
+              <img class="${exOwned ? 'thumb thumb--preview' : 'thumb locked'}" src="${exOwned ? assetUrl(exFigure.image) : 'https://placehold.co/120x120?text=EX'}" alt="${exOwned ? exFigure.name : 'EX'}" ${exOwned ? 'data-image-preview="1" role="button" tabindex="0"' : ''} onerror="this.src='https://placehold.co/120x120?text=EX'">
               <div class="item-main">
                 <div class="item-row"><div><strong>${getFigureNo(exFigure)}</strong></div><span class="badge EX" style="margin-top:0;">EX</span></div>
                 <div class="item-name">${exOwned ? exFigure.name : `${seriesLabel}EX`}</div>
@@ -1977,7 +2114,7 @@
     function renderRatesTab() {
       const html = getDrawTargetFigures().sort((a, b) => a.sortOrder - b.sortOrder).map(figure => `
         <div class="item">
-          <img class="thumb" src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(getFigureNo(figure))}'">
+          <img class="thumb thumb--preview" src="${assetUrl(figure.image)}" alt="${figure.name}" data-image-preview="1" role="button" tabindex="0" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(getFigureNo(figure))}'">
           <div class="item-main">
             <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
             <div class="item-name">${figure.name}</div>
@@ -1994,6 +2131,7 @@
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === activeTab));
       if (isAdmin && activeTab === 'rates') renderRatesTab();
       else renderCollectionTab();
+      bindCollectionImagePreview();
       updateProgress();
     }
     function renderResult(figure, drawResult) {
@@ -2186,9 +2324,20 @@
       page.classList.toggle('active', page.id === pageId);
     });
 
-    document.body.classList.toggle('is-gacha-page', pageId === 'gachaPage');
+    // ガチャ・コレクション切替時も共通のスマホ外枠を維持し、比率のずれを防ぐ。
+    document.body.classList.add('is-gacha-page');
   });
 });
+
+    const collectionImageModalClose = document.getElementById("collectionImageModalClose");
+    const collectionImageModalScrim = document.getElementById("collectionImageModalScrim");
+    if (collectionImageModalClose) collectionImageModalClose.addEventListener("click", closeCollectionImageModal);
+    if (collectionImageModalScrim) collectionImageModalScrim.addEventListener("click", closeCollectionImageModal);
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && document.getElementById("collectionImageModal")?.classList.contains("is-open")) {
+        closeCollectionImageModal();
+      }
+    });
 
     closeModalBtn.addEventListener('click', () => {
       resultModal.style.display = 'none';
