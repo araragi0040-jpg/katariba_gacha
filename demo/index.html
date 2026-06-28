@@ -1009,6 +1009,95 @@
   }
 }
     
+
+    /* =========================
+       交換pt・交換UI（追加分）
+    ========================= */
+    .EX { background: #fce7f3; color: #9d174d; }
+    .series-summary {
+      margin-bottom: 16px;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.94);
+      border: 1px solid rgba(226,232,240,0.95);
+      box-shadow: var(--shadow-soft);
+    }
+    .series-summary__top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-weight: 800;
+    }
+    .series-summary__missing {
+      margin-top: 10px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .series-block + .series-block { margin-top: 24px; }
+    .series-block__title { font-size: 18px; font-weight: 800; margin: 0 0 10px; }
+    .exchange-actions {
+      min-width: 122px;
+      display: grid;
+      justify-items: end;
+      gap: 6px;
+      text-align: right;
+    }
+    .exchange-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 9px 11px;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .exchange-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .exchange-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .result-status {
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,247,237,0.95);
+      color: #9a3412;
+      font-size: 13px;
+      line-height: 1.65;
+      font-weight: 700;
+    }
+    .result-tile-status {
+      position: absolute;
+      left: 5px;
+      right: 5px;
+      bottom: 5px;
+      padding: 4px 5px;
+      border-radius: 9px;
+      background: rgba(15,23,42,0.78);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      text-align: center;
+      backdrop-filter: blur(3px);
+    }
+    .multi-exchange-total {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,247,237,0.96);
+      color: #9a3412;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.6;
+    }
+    @media (max-width: 640px) {
+      .item { gap: 10px; }
+      .exchange-actions { min-width: 104px; }
+      .exchange-btn { padding: 8px 8px; font-size: 11px; }
+    }
+
   </style>
 </head>
 <body class="is-gacha-page">
@@ -1271,18 +1360,20 @@
       if (!gachaTicket) return { ok: false };
       return await callNewsApiFromGacha("getGachaCollection", { ticket: gachaTicket });
     }
-
     function applyServerCollection(data) {
       if (!data || !data.ok) return;
       inventory = data.inventory || {};
       totalSpins = Number(data.totalSpins || 0);
+      exchangePoints = data.exchangePoints || {};
+      seriesStatus = data.seriesStatus || {};
+      if (Array.isArray(data.figures) && data.figures.length) {
+        FIGURES = data.figures.map(normalizeClientFigure).sort((a, b) => a.sortOrder - b.sortOrder);
+      }
       saveState();
       renderTab();
     }
-
     function getFigureNo(figure) {
-      const index = FIGURES.findIndex(item => item.id === figure.id);
-      return `No.${index >= 0 ? index + 1 : "?"}`;
+      return String(figure && figure.displayNo ? figure.displayNo : "?");
     }
 
     function buildLocalImportItems() {
@@ -1310,69 +1401,168 @@
       const finalData = await importLocalInventoryIfNeeded(serverData);
       if (finalData && finalData.ok) applyServerCollection(finalData);
     }
-
-    async function saveGachaResultToServer(figure) {
+    async function saveGachaResultToServer(figure, requestId) {
       if (!gachaTicket) return { ok: false };
       return await callNewsApiFromGacha("saveGachaResult", {
         ticket: gachaTicket,
-        result: { id: figure.id, no: getFigureNo(figure), name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image }
+        requestId: requestId || createClientRequestId("draw1"),
+        result: { figureId: figure.id }
       });
     }
-
-    async function saveGachaResultsToServer(figures) {
+    async function saveGachaResultsToServer(figures, requestId) {
       if (!gachaTicket) return { ok: false };
       return await callNewsApiFromGacha("saveGachaResults", {
         ticket: gachaTicket,
-        results: figures.map(figure => ({ id: figure.id, no: getFigureNo(figure), name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image }))
+        requestId: requestId || createClientRequestId("drawN"),
+        results: figures.map(figure => ({ figureId: figure.id }))
       });
     }
-
     function drawMultipleFigures(count) {
+      const pool = getDrawTargetFigures();
       const results = [];
-      for (let i = 0; i < count; i++) results.push(weightedDraw(FIGURES));
+      for (let i = 0; i < count; i++) results.push(weightedDraw(pool));
       return results;
     }
 
-    const FIGURES = [
-      { id: 1, name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png' },
-      { id: 2, name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/よっしー_N.png' },
-      { id: 3, name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/じんさん_N.png' },
-      { id: 4, name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ケンさん_N.png' },
-      { id: 5, name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/しゅう_N.png' },
-      { id: 6, name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/とっとくん_N.png' },
-      { id: 7, name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/かずま_N.png' },
-      { id: 8, name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png' },
-      { id: 9, name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png' },
-      { id: 10, name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png' },
-      { id: 11, name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/おかっち_N.png' },
-      { id: 12, name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png' },
-      { id: 13, name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png' },
-      { id: 14, name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/東さん_ガンプラ.png' },
-      { id: 15, name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/よっしー_LS撮影.png' },
-      { id: 16, name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/じんさん_ボドゲ.png' },
-      { id: 17, name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/ケンさん_講演.png' },
-      { id: 18, name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/しゅう_乾杯.png' },
-      { id: 19, name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/とっとくん_ハウスクリーニング.png' },
-      { id: 20, name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/かずま_内臓整体.png' },
-      { id: 32, name: 'たかちゃん', rarity: 'R', dropRate: 18, concept: '焼酎呑み', image: 'images/たかちゃん_赤兎馬.png' },
-      { id: 21, name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/だいちさん_占い中.png' },
-      { id: 22, name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/ゆかちゃん_占い中.png' },
-      { id: 23, name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/おかっち_よもぎ蒸し.png' },
-      { id: 37, name: 'だいちゃん', rarity: 'R', dropRate: 18, concept: 'オンライン講座', image: 'images/だいちゃん_オンライン講座.png' },
-      { id: 24, name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/ぐっちょん_会計.png' },
-      { id: 25, name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/東さん_編集長.png' },
-      { id: 26, name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/よっしー_書籍出版.png' },
-      { id: 27, name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/じんさん_木工.png' },
-      { id: 28, name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/ケンさん_ベース演奏.png' },
-      { id: 29, name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/しゅう_MC.png' },
-      { id: 30, name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png' },
-      { id: 33, name: 'たかちゃん', rarity: 'SR', dropRate: 10, concept: 'オンライン講座', image: 'images/たかちゃん_オンライン講座.png' },
-      { id: 38, name: 'だいちさん', rarity: 'SR', dropRate: 10, concept: 'シェアハウスの日常', image: 'images/だいちさん_シェアハウス日常.png' },
-      { id: 34, name: 'ゆかちゃん', rarity: 'SR', dropRate: 10, concept: 'あべちゃんメイク', image: 'images/ゆか_あべちゃんメイク.png' },
-      { id: 35, name: 'おかっち', rarity: 'SR', dropRate: 10, concept: 'パンプアップ', image: 'images/おかっち_ジム.png' },
-      { id: 39, name: 'だいちゃん', rarity: 'SR', dropRate: 10, concept: 'ライブ配信', image: 'images/だいちゃん_ライブ配信.png' },
-      { id: 36, name: 'ぐっちょん', rarity: 'SR', dropRate: 10, concept: '本収集', image: 'images/ぐっちょん_本収集.png' },
-      { id: 31, name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png' }
+    function normalizeClientFigure(figure) {
+      const rarity = String(figure.rarity || "").trim();
+      return {
+        id: Number(figure.id ?? figure.figureId),
+        seriesId: String(figure.seriesId || "S1"),
+        displayNo: String(figure.displayNo || figure.figureNo || "?"),
+        sortOrder: Number(figure.sortOrder || 999999),
+        name: String(figure.name || figure.figureName || ""),
+        rarity,
+        dropRate: Number(figure.dropRate || 0),
+        concept: String(figure.concept || ""),
+        image: String(figure.image || ""),
+        exchangeCost: Number(figure.exchangeCost || ({ N: 10, R: 20, SR: 30, EX: 50 }[rarity] || 0)),
+        isEx: figure.isEx === true || String(figure.isEx).toLowerCase() === "true",
+        isDrawTarget: figure.isDrawTarget === true || String(figure.isDrawTarget).toLowerCase() === "true",
+        isActive: figure.isActive !== false && String(figure.isActive).toLowerCase() !== "false"
+      };
+    }
+
+    function createClientRequestId(prefix) {
+      const suffix = (window.crypto && typeof window.crypto.randomUUID === "function")
+        ? window.crypto.randomUUID()
+        : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      return `${prefix || "req"}_${suffix}`;
+    }
+
+    function getDrawTargetFigures() {
+      return FIGURES.filter(figure => figure.isActive !== false && figure.isDrawTarget === true && figure.isEx !== true);
+    }
+
+    function getNormalSeriesFigures(seriesId) {
+      return FIGURES
+        .filter(figure => figure.isActive !== false && figure.seriesId === seriesId && !figure.isEx)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+
+    function getSeriesExFigure(seriesId) {
+      return FIGURES.find(figure => figure.isActive !== false && figure.seriesId === seriesId && figure.isEx) || null;
+    }
+
+    function getSeriesIds() {
+      return Array.from(new Set(FIGURES.filter(figure => figure.isActive !== false).map(figure => figure.seriesId)))
+        .sort((a, b) => String(a).localeCompare(String(b), "ja", { numeric: true }));
+    }
+
+    function getSeriesLabel(seriesId) {
+      const match = String(seriesId || "").match(/(\d+)/);
+      return match ? `第${Number(match[1])}弾` : String(seriesId || "シリーズ");
+    }
+
+    function getDuplicatePointLabel(drawResult) {
+      const point = Number(drawResult && drawResult.duplicatePoint || 0);
+      return drawResult && drawResult.isNew ? "NEW" : `＋${point}pt`;
+    }
+
+    async function exchangeFigureFromCollection(figureId, clickedButton) {
+      if (exchangeProcessing) return;
+      const figure = FIGURES.find(item => String(item.id) === String(figureId));
+      if (!figure) return;
+      const label = figure.isEx ? `${getSeriesLabel(figure.seriesId)}EX` : `${getFigureNo(figure)} ${figure.name}`;
+      if (!confirm(`${label}を${figure.exchangeCost}交換ptで交換しますか？`)) return;
+
+      exchangeProcessing = true;
+      if (clickedButton) clickedButton.disabled = true;
+      try {
+        const data = await callNewsApiFromGacha("exchangeFigure", {
+          ticket: gachaTicket,
+          requestId: createClientRequestId("exchange"),
+          figureId: figure.id
+        });
+        if (!data.ok) {
+          const messageMap = {
+            NOT_ENOUGH_EXCHANGE_POINTS: "交換ptが不足しています。",
+            ALREADY_OWNED: "すでに所持しています。",
+            SERIES_NOT_COMPLETE: "通常フィギュアをコンプリートするとEX交換が解放されます。"
+          };
+          alert(messageMap[data.code] || data.message || "交換に失敗しました。");
+          return;
+        }
+        applyServerCollection(data);
+        alert(`${label}を交換しました。`);
+      } catch (err) {
+        console.error("交換処理中のエラー:", err);
+        alert("交換処理中にエラーが発生しました。");
+      } finally {
+        exchangeProcessing = false;
+        renderTab();
+      }
+    }
+
+    function bindExchangeButtons() {
+      document.querySelectorAll("[data-exchange-figure]").forEach(button => {
+        button.addEventListener("click", () => {
+          exchangeFigureFromCollection(button.dataset.exchangeFigure, button);
+        });
+      });
+    }
+
+    let FIGURES = [
+      { id: 1, seriesId: 'S1', displayNo: 'No.1', sortOrder: 100, name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/東さん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 2, seriesId: 'S1', displayNo: 'No.2', sortOrder: 200, name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/よっしー_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 3, seriesId: 'S1', displayNo: 'No.3', sortOrder: 300, name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/じんさん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 4, seriesId: 'S1', displayNo: 'No.4', sortOrder: 400, name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ケンさん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 5, seriesId: 'S1', displayNo: 'No.5', sortOrder: 500, name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/しゅう_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 6, seriesId: 'S1', displayNo: 'No.6', sortOrder: 600, name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/とっとくん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 7, seriesId: 'S1', displayNo: 'No.7', sortOrder: 700, name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/かずま_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 8, seriesId: 'S1', displayNo: 'No.8', sortOrder: 800, name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/たかちゃん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 9, seriesId: 'S1', displayNo: 'No.9', sortOrder: 900, name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちさん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 10, seriesId: 'S1', displayNo: 'No.10', sortOrder: 1000, name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ゆかちゃん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 11, seriesId: 'S1', displayNo: 'No.11', sortOrder: 1100, name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/おかっち_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 12, seriesId: 'S1', displayNo: 'No.12', sortOrder: 1200, name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/だいちゃん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 13, seriesId: 'S1', displayNo: 'No.13', sortOrder: 1300, name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/ぐっちょん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 14, seriesId: 'S1', displayNo: 'No.14', sortOrder: 1400, name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/東さん_ガンプラ.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 15, seriesId: 'S1', displayNo: 'No.15', sortOrder: 1500, name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/よっしー_LS撮影.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 16, seriesId: 'S1', displayNo: 'No.16', sortOrder: 1600, name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/じんさん_ボドゲ.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 17, seriesId: 'S1', displayNo: 'No.17', sortOrder: 1700, name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/ケンさん_講演.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 18, seriesId: 'S1', displayNo: 'No.18', sortOrder: 1800, name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/しゅう_乾杯.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 19, seriesId: 'S1', displayNo: 'No.19', sortOrder: 1900, name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/とっとくん_ハウスクリーニング.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 20, seriesId: 'S1', displayNo: 'No.20', sortOrder: 2000, name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/かずま_内臓整体.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 32, seriesId: 'S1', displayNo: 'No.21', sortOrder: 2100, name: 'たかちゃん', rarity: 'R', dropRate: 18, concept: '焼酎呑み', image: 'images/たかちゃん_赤兎馬.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 21, seriesId: 'S1', displayNo: 'No.22', sortOrder: 2200, name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/だいちさん_占い中.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 22, seriesId: 'S1', displayNo: 'No.23', sortOrder: 2300, name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/ゆかちゃん_占い中.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 23, seriesId: 'S1', displayNo: 'No.24', sortOrder: 2400, name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/おかっち_よもぎ蒸し.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 37, seriesId: 'S1', displayNo: 'No.25', sortOrder: 2500, name: 'だいちゃん', rarity: 'R', dropRate: 18, concept: 'オンライン講座', image: 'images/だいちゃん_オンライン講座.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 24, seriesId: 'S1', displayNo: 'No.26', sortOrder: 2600, name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/ぐっちょん_会計.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 25, seriesId: 'S1', displayNo: 'No.27', sortOrder: 2700, name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/東さん_編集長.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 26, seriesId: 'S1', displayNo: 'No.28', sortOrder: 2800, name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/よっしー_書籍出版.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 27, seriesId: 'S1', displayNo: 'No.29', sortOrder: 2900, name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/じんさん_木工.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 28, seriesId: 'S1', displayNo: 'No.30', sortOrder: 3000, name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/ケンさん_ベース演奏.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 29, seriesId: 'S1', displayNo: 'No.31', sortOrder: 3100, name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/しゅう_MC.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 30, seriesId: 'S1', displayNo: 'No.32', sortOrder: 3200, name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/とっとくん_デザイナー.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 33, seriesId: 'S1', displayNo: 'No.33', sortOrder: 3300, name: 'たかちゃん', rarity: 'SR', dropRate: 10, concept: 'オンライン講座', image: 'images/たかちゃん_オンライン講座.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 38, seriesId: 'S1', displayNo: 'No.34', sortOrder: 3400, name: 'だいちさん', rarity: 'SR', dropRate: 10, concept: 'シェアハウスの日常', image: 'images/だいちさん_シェアハウス日常.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 34, seriesId: 'S1', displayNo: 'No.35', sortOrder: 3500, name: 'ゆかちゃん', rarity: 'SR', dropRate: 10, concept: 'あべちゃんメイク', image: 'images/ゆか_あべちゃんメイク.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 35, seriesId: 'S1', displayNo: 'No.36', sortOrder: 3600, name: 'おかっち', rarity: 'SR', dropRate: 10, concept: 'パンプアップ', image: 'images/おかっち_ジム.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 39, seriesId: 'S1', displayNo: 'No.37', sortOrder: 3700, name: 'だいちゃん', rarity: 'SR', dropRate: 10, concept: 'ライブ配信', image: 'images/だいちゃん_ライブ配信.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 36, seriesId: 'S1', displayNo: 'No.38', sortOrder: 3800, name: 'ぐっちょん', rarity: 'SR', dropRate: 10, concept: '本収集', image: 'images/ぐっちょん_本収集.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 31, seriesId: 'S1', displayNo: 'No.39', sortOrder: 3900, name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/かずま_研究.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 40, seriesId: 'S1', displayNo: 'EX', sortOrder: 9999, name: '第1弾EX', rarity: 'EX', dropRate: 0, concept: 'ポイント交換限定', image: 'images/第1弾_EX.png', exchangeCost: 50, isEx: true, isDrawTarget: false, isActive: true }
     ];
 
     const STORAGE_KEY = 'katariba_gacha_inventory_v2';
@@ -1382,6 +1572,9 @@
     let totalSpins = Number(localStorage.getItem(STORAGE_SPIN_KEY) || 0);
     let activeTab = 'collection';
     let spinning = false;
+    let exchangePoints = {};
+    let seriesStatus = {};
+    let exchangeProcessing = false;
 
     const spinBtn = document.getElementById('spinBtn');
     const machineTop = document.getElementById('machineTop');
@@ -1414,59 +1607,119 @@
       }
       return pool[pool.length - 1];
     }
-
     function getOwnedCount() {
-      return FIGURES.filter(f => (inventory[f.id] || 0) > 0).length;
+      return getDrawTargetFigures().filter(f => Number(inventory[f.id] || 0) > 0).length;
     }
-
     function updateProgress() {
-      const owned = getOwnedCount();
-      const total = FIGURES.length;
+      const normalFigures = getDrawTargetFigures();
+      const owned = normalFigures.filter(f => Number(inventory[f.id] || 0) > 0).length;
+      const total = normalFigures.length;
       const rate = total === 0 ? 0 : Math.round((owned / total) * 100);
       collectionText.textContent = `${owned}/${total}`;
       progressBar.style.width = `${rate}%`;
       spinCount.textContent = totalSpins;
     }
-
     function renderCollectionTab() {
-      const html = FIGURES.map((figure, index) => {
-        const count = inventory[figure.id] || 0;
-        const owned = count > 0;
-        const imgClass = owned ? 'thumb' : 'thumb locked';
-        const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
-        const name = owned ? figure.name : '未獲得';
-        const text = owned ? figure.concept : 'ガチャで引くと公開されます';
-        const figureNo = `No.${index + 1}`;
-        return `
-          <div class="item">
-            <img class="${imgClass}" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/120x120?text=?'">
-            <div class="item-main">
-              <div class="item-row"><div><strong>${figureNo}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
-              <div class="item-name">${name}</div>
-              <div class="item-text">${text}</div>
-            </div>
-            <div class="item-count">x${count}</div>
-          </div>
-        `;
-      }).join('');
-      tabContent.innerHTML = `<div class="list">${html}</div>`;
-    }
+      const seriesHtml = getSeriesIds().map(seriesId => {
+        const seriesLabel = getSeriesLabel(seriesId);
+        const normalFigures = getNormalSeriesFigures(seriesId);
+        const exFigure = getSeriesExFigure(seriesId);
+        const balance = Number(exchangePoints[seriesId] || 0);
+        const serverStatus = seriesStatus[seriesId] || {};
+        const ownedNormal = Number(serverStatus.ownedNormal ?? normalFigures.filter(f => Number(inventory[f.id] || 0) > 0).length);
+        const totalNormal = Number(serverStatus.totalNormal ?? normalFigures.length);
+        const isComplete = serverStatus.isComplete === true || (totalNormal > 0 && ownedNormal >= totalNormal);
+        const missingByRarity = serverStatus.missingByRarity || normalFigures.reduce((acc, f) => {
+          if (Number(inventory[f.id] || 0) <= 0) acc[f.rarity] = Number(acc[f.rarity] || 0) + 1;
+          return acc;
+        }, { N: 0, R: 0, SR: 0 });
 
+        const summary = `
+          <div class="series-summary">
+            <div class="series-summary__top">
+              <span>${seriesLabel}コレクション　${ownedNormal} / ${totalNormal}</span>
+              <span>${seriesLabel}交換pt　${balance}pt</span>
+            </div>
+            <div class="series-summary__missing">
+              <span>未所持</span>
+              <span>N：${Number(missingByRarity.N || 0)}体</span>
+              <span>R：${Number(missingByRarity.R || 0)}体</span>
+              <span>SR：${Number(missingByRarity.SR || 0)}体</span>
+            </div>
+          </div>`;
+
+        const normalHtml = normalFigures.map(figure => {
+          const count = Number(inventory[figure.id] || 0);
+          const owned = count > 0;
+          const imgClass = owned ? 'thumb' : 'thumb locked';
+          const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
+          const name = owned ? figure.name : '未獲得';
+          const text = owned ? figure.concept : 'ガチャまたは交換で入手できます';
+          const shortage = Math.max(0, Number(figure.exchangeCost || 0) - balance);
+          const actionHtml = owned
+            ? `<div class="item-count">x${count}</div>`
+            : `<div class="exchange-actions">
+                <button class="exchange-btn" type="button" data-exchange-figure="${figure.id}" ${balance < figure.exchangeCost || exchangeProcessing ? 'disabled' : ''}>${figure.exchangeCost}ptで交換</button>
+                <div class="exchange-note">${shortage > 0 ? `あと${shortage}pt必要` : '交換できます'}</div>
+              </div>`;
+          return `
+            <div class="item">
+              <img class="${imgClass}" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/120x120?text=?'">
+              <div class="item-main">
+                <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
+                <div class="item-name">${name}</div>
+                <div class="item-text">${text}</div>
+              </div>
+              ${actionHtml}
+            </div>`;
+        }).join('');
+
+        let exHtml = '';
+        if (exFigure) {
+          const exOwned = Number(inventory[exFigure.id] || 0) > 0;
+          const shortage = Math.max(0, Number(exFigure.exchangeCost || 50) - balance);
+          const unlocked = isComplete;
+          const exText = exOwned
+            ? exFigure.concept
+            : unlocked
+              ? `EX交換が解放されました　現在${balance} / ${exFigure.exchangeCost}pt`
+              : `${seriesLabel}コンプリートで解放　交換には${exFigure.exchangeCost}pt必要です`;
+          const exAction = exOwned
+            ? `<div class="item-count">x1</div>`
+            : `<div class="exchange-actions">
+                <button class="exchange-btn" type="button" data-exchange-figure="${exFigure.id}" ${!unlocked || balance < exFigure.exchangeCost || exchangeProcessing ? 'disabled' : ''}>${unlocked ? `${exFigure.exchangeCost}ptでEX交換` : '未解放'}</button>
+                <div class="exchange-note">${unlocked ? (shortage > 0 ? `あと${shortage}pt必要` : '交換できます') : '通常フィギュアを集めてください'}</div>
+              </div>`;
+          exHtml = `
+            <div class="item">
+              <img class="${exOwned ? 'thumb' : 'thumb locked'}" src="${exOwned ? assetUrl(exFigure.image) : 'https://placehold.co/120x120?text=EX'}" alt="EX" onerror="this.src='https://placehold.co/120x120?text=EX'">
+              <div class="item-main">
+                <div class="item-row"><div><strong>${getFigureNo(exFigure)}</strong></div><span class="badge EX" style="margin-top:0;">EX</span></div>
+                <div class="item-name">${exOwned ? exFigure.name : `${seriesLabel}EX`}</div>
+                <div class="item-text">${exText}</div>
+              </div>
+              ${exAction}
+            </div>`;
+        }
+
+        return `<section class="series-block"><div class="series-block__title">${seriesLabel}</div>${summary}<div class="list">${normalHtml}${exHtml}</div></section>`;
+      }).join('');
+
+      tabContent.innerHTML = seriesHtml || '<div class="placeholder">コレクション情報がありません</div>';
+      bindExchangeButtons();
+    }
     function renderRatesTab() {
-      const html = FIGURES.map((figure, index) => {
-        const figureNo = `No.${index + 1}`;
-        return `
+      const html = getDrawTargetFigures().sort((a, b) => a.sortOrder - b.sortOrder).map(figure => `
         <div class="item">
-          <img class="thumb" src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
+          <img class="thumb" src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(getFigureNo(figure))}'">
           <div class="item-main">
-            <div class="item-row"><div><strong>${figureNo}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
+            <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
             <div class="item-name">${figure.name}</div>
             <div class="item-text">${figure.concept}</div>
           </div>
           <div class="item-count">${figure.dropRate}%</div>
         </div>
-      `;
-      }).join('');
+      `).join('');
       tabContent.innerHTML = `<div class="list">${html}</div>`;
     }
 
@@ -1477,35 +1730,47 @@
       else renderCollectionTab();
       updateProgress();
     }
-
-    function renderResult(figure) {
+    function renderResult(figure, drawResult) {
       const figureNo = getFigureNo(figure);
+      const seriesId = String(drawResult && drawResult.seriesId || figure.seriesId || "S1");
+      const currentSeriesPoint = Number(exchangePoints[seriesId] || 0);
+      const statusHtml = drawResult && drawResult.isNew
+        ? `<div class="result-status"><strong>NEW</strong><br>交換ptの付与はありません</div>`
+        : `<div class="result-status"><strong>所持済み</strong><br>${figure.rarity}重複ボーナス ＋${Number(drawResult && drawResult.duplicatePoint || 0)}交換pt<br>${getSeriesLabel(seriesId)}交換pt：${currentSeriesPoint}pt</div>`;
       resultStage.innerHTML = `
         <div class="figure-card figure-card--single">
           <img src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figureNo)}'">
           <div class="badge ${figure.rarity}">${figure.rarity}</div>
           <div class="figure-name">${figureNo} ${figure.name}</div>
+          ${statusHtml}
         </div>
       `;
       resultModal.style.display = 'flex';
       document.body.style.overflow = 'hidden';
     }
-
-    function renderMultiResult(results) {
-      const html = results.map(figure => {
+    function renderMultiResult(results, drawResults) {
+      const metaList = Array.isArray(drawResults) ? drawResults : [];
+      const totals = {};
+      const html = results.map((figure, index) => {
         const figureNo = getFigureNo(figure);
+        const meta = metaList.find(item => Number(item.resultIndex) === index) || metaList[index] || {};
+        const seriesId = String(meta.seriesId || figure.seriesId || "S1");
+        const point = Number(meta.duplicatePoint || 0);
+        if (point > 0) totals[seriesId] = Number(totals[seriesId] || 0) + point;
         return `
           <div class="result-tile" title="${figureNo} ${figure.name}">
             <img src="${assetUrl(figure.image)}" alt="${figureNo} ${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
             <span class="result-tile-badge badge ${figure.rarity}">${figure.rarity}</span>
-          </div>
-        `;
+            <span class="result-tile-status">${getDuplicatePointLabel(meta)}</span>
+          </div>`;
       }).join('');
-      resultStage.innerHTML = `<div class="result-grid">${html}</div>`;
+      const totalHtml = Object.keys(totals).length
+        ? Object.keys(totals).map(seriesId => `今回獲得した${getSeriesLabel(seriesId)}交換pt：＋${totals[seriesId]}pt`).join('<br>')
+        : '今回獲得した交換pt：＋0pt';
+      resultStage.innerHTML = `<div class="result-grid">${html}<div class="multi-exchange-total">${totalHtml}</div></div>`;
       resultModal.style.display = 'flex';
       document.body.style.overflow = 'hidden';
     }
-
     async function spinGacha() {
       if (spinning) return;
       spinning = true;
@@ -1525,27 +1790,19 @@
         renderGachaLoadingAnimation('1回ガチャ抽選中', 'カプセルを取り出しています');
 
         await new Promise(resolve => setTimeout(resolve, 1400));
-        const result = weightedDraw(FIGURES);
+        const result = weightedDraw(getDrawTargetFigures());
+        const savedResult = await saveGachaResultToServer(result, createClientRequestId('draw1'));
 
-        inventory[result.id] = (inventory[result.id] || 0) + 1;
-        totalSpins += 1;
-        saveState();
-
-        const savedResult = await saveGachaResultToServer(result);
         if (savedResult && savedResult.ok) {
           applyServerCollection(savedResult);
+          renderResult(result, Array.isArray(savedResult.drawResults) ? savedResult.drawResults[0] : null);
         } else {
           console.warn('saveGachaResult failed:', savedResult);
           const refundResult = await refundPointsAfterFailedSave(1);
-          if (!refundResult || !refundResult.ok) {
-            console.warn('refundGachaPoints failed:', refundResult);
-          }
+          if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
+          resultStage.innerHTML = '<div class="placeholder">保存に失敗したため、消費ptを返却しました。</div>';
           alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
         }
-
-        renderResult(result);
-        renderTab();
-
       } catch (err) {
         console.error('ガチャ処理中のエラー:', err);
         alert('ガチャ処理中にエラーが発生しました。');
@@ -1558,7 +1815,6 @@
         updateMultiSpinButton(latestNewsPoints || 0);
       }
     }
-
     async function spinMultiGacha() {
       if (spinning) return;
       const availablePoints = Number(latestNewsPoints || 0);
@@ -1589,28 +1845,18 @@
 
         await new Promise(resolve => setTimeout(resolve, 1400));
         const results = drawMultipleFigures(actualDrawCount);
+        const savedResult = await saveGachaResultsToServer(results, createClientRequestId('drawN'));
 
-        results.forEach(result => {
-          inventory[result.id] = (inventory[result.id] || 0) + 1;
-        });
-        totalSpins += results.length;
-        saveState();
-
-        const savedResult = await saveGachaResultsToServer(results);
         if (savedResult && savedResult.ok) {
           applyServerCollection(savedResult);
+          renderMultiResult(results, savedResult.drawResults || []);
         } else {
           console.warn('saveGachaResults failed:', savedResult);
           const refundResult = await refundPointsAfterFailedSave(results.length);
-          if (!refundResult || !refundResult.ok) {
-            console.warn('refundGachaPoints failed:', refundResult);
-          }
+          if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
+          resultStage.innerHTML = '<div class="placeholder">保存に失敗したため、消費ptを返却しました。</div>';
           alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
         }
-
-        renderMultiResult(results);
-        renderTab();
-
       } catch (err) {
         console.error('10連ガチャ処理中のエラー:', err);
         alert('10連ガチャ処理中にエラーが発生しました。');

@@ -152,15 +152,23 @@ if (action === "getGachaCollection") {
 }
 
 if (action === "saveGachaResult") {
-  return outputJson(saveGachaResult(body.ticket || "", body.result || body.figure || {}));
+  return outputJson(saveGachaResult(body.ticket || "", body.result || body.figure || {}, body.requestId || ""));
 }
 
 if (action === "saveGachaResults") {
-  return outputJson(saveGachaResults(body.ticket || "", body.results || []));
+  return outputJson(saveGachaResults(body.ticket || "", body.results || [], body.requestId || ""));
 }
 
 if (action === "importLocalGachaInventory") {
   return outputJson(importLocalGachaInventory(body.ticket || "", body.items || []));
+}
+
+if (action === "getExchangeStatus") {
+  return outputJson(getGachaCollection(body.ticket || ""));
+}
+
+if (action === "exchangeFigure" || action === "exchangeExFigure") {
+  return outputJson(exchangeGachaFigure(body.ticket || "", body.figureId || "", body.requestId || ""));
 }
 
 if (action === "savePushSubscription") {
@@ -2189,35 +2197,57 @@ function refundGachaPoints(ticket, count) {
     lock.releaseLock();
   }
 }
-
-function saveGachaResults(ticket, results) {
+function processGachaDrawResults_(ticket, results, requestId, actionName) {
   const session = requireValidGachaSession(ticket);
   const list = Array.isArray(results) ? results : [];
-
-  if (!list.length) {
-    return getGachaCollection(ticket);
-  }
+  if (!list.length) return getGachaCollection(ticket);
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
-
   try {
-    list.forEach(result => {
-      const normalized = normalizeGachaResult(result);
-      if (!normalized.figureId) return;
+    const stored = getStoredActionResponse_(session.userId, actionName, requestId);
+    if (stored) return stored;
 
-      upsertGachaInventory(
-        session.userId,
-        ticket,
-        normalized,
-        1
-      );
+    const rows = getGachaInventoryRowsByUserId(session.userId);
+    const workingInventory = buildGachaInventory(rows);
+    const pointAdditions = {};
+    const drawResults = [];
+
+    list.forEach((result, resultIndex) => {
+      const figureId = String(result && (result.figureId || result.id) || "").trim();
+      const master = getGachaFigureById_(figureId);
+      if (!master || !master.isActive || master.isEx || !master.isDrawTarget) {
+        throw fail("抽選対象ではないフィギュアが含まれています。", "INVALID_GACHA_FIGURE");
+      }
+
+      const currentQuantity = Math.max(0, Math.floor(Number(workingInventory[master.figureId] || 0)));
+      const isNew = currentQuantity <= 0;
+      const duplicatePoint = isNew ? 0 : Math.max(0, Number(DUPLICATE_POINT_BY_RARITY[master.rarity] || 0));
+      if (duplicatePoint > 0) pointAdditions[master.seriesId] = Number(pointAdditions[master.seriesId] || 0) + duplicatePoint;
+
+      upsertGachaInventory(session.userId, ticket, normalizeGachaResult({ figureId: master.figureId }), 1);
+      workingInventory[master.figureId] = currentQuantity + 1;
+      drawResults.push({
+        resultIndex: resultIndex,
+        figureId: Number(master.figureId),
+        isNew: isNew,
+        duplicatePoint: duplicatePoint,
+        seriesId: master.seriesId
+      });
     });
+
+    addExchangePoints_(session.userId, pointAdditions);
+    const response = getGachaCollection(ticket);
+    response.drawResults = drawResults;
+    storeActionResponse_(session.userId, actionName, requestId, response);
+    return response;
   } finally {
     lock.releaseLock();
   }
+}
 
-  return getGachaCollection(ticket);
+function saveGachaResults(ticket, results, requestId) {
+  return processGachaDrawResults_(ticket, results, requestId, "saveGachaResults");
 }
 
 function findGachaSessionByTicket(ticket) {
@@ -2292,6 +2322,305 @@ function getUserPointState(userId) {
   };
 }
 
+
+const GACHA_EXCHANGE_POINTS_SHEET_NAME = "gacha_exchange_points";
+const GACHA_EXCHANGE_HISTORY_SHEET_NAME = "gacha_exchange_history";
+const GACHA_FIGURE_MASTER_SHEET_NAME = "gacha_figure_master";
+const GACHA_ACTION_REQUESTS_SHEET_NAME = "gacha_action_requests";
+const DUPLICATE_POINT_BY_RARITY = { N: 1, R: 2, SR: 3 };
+
+function getDefaultGachaFigureMaster_() {
+  return [
+    { figureId: "1", seriesId: "S1", displayNo: "No.1", sortOrder: 100, figureName: "東さん", rarity: "N", concept: "語り場共同オーナー", image: "images/東さん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "2", seriesId: "S1", displayNo: "No.2", sortOrder: 200, figureName: "よっしー", rarity: "N", concept: "語り場共同オーナー", image: "images/よっしー_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "3", seriesId: "S1", displayNo: "No.3", sortOrder: 300, figureName: "じんさん", rarity: "N", concept: "語り場共同オーナー", image: "images/じんさん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "4", seriesId: "S1", displayNo: "No.4", sortOrder: 400, figureName: "海賊けん", rarity: "N", concept: "語り場共同オーナー", image: "images/ケンさん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "5", seriesId: "S1", displayNo: "No.5", sortOrder: 500, figureName: "しゅうへい", rarity: "N", concept: "語り場共同オーナー", image: "images/しゅう_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "6", seriesId: "S1", displayNo: "No.6", sortOrder: 600, figureName: "とっとくん", rarity: "N", concept: "語り場共同オーナー", image: "images/とっとくん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "7", seriesId: "S1", displayNo: "No.7", sortOrder: 700, figureName: "かずま", rarity: "N", concept: "語り場共同オーナー", image: "images/かずま_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "8", seriesId: "S1", displayNo: "No.8", sortOrder: 800, figureName: "たかちゃん", rarity: "N", concept: "語り場共同オーナー", image: "images/たかちゃん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "9", seriesId: "S1", displayNo: "No.9", sortOrder: 900, figureName: "だいちさん", rarity: "N", concept: "語り場共同オーナー", image: "images/だいちさん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "10", seriesId: "S1", displayNo: "No.10", sortOrder: 1000, figureName: "ゆかちゃん", rarity: "N", concept: "語り場共同オーナー", image: "images/ゆかちゃん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "11", seriesId: "S1", displayNo: "No.11", sortOrder: 1100, figureName: "おかっち", rarity: "N", concept: "語り場共同オーナー", image: "images/おかっち_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "12", seriesId: "S1", displayNo: "No.12", sortOrder: 1200, figureName: "だいちゃん", rarity: "N", concept: "語り場共同オーナー", image: "images/だいちゃん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "13", seriesId: "S1", displayNo: "No.13", sortOrder: 1300, figureName: "ぐっちょん", rarity: "N", concept: "語り場共同オーナー", image: "images/ぐっちょん_N.png", dropRate: 40, exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "14", seriesId: "S1", displayNo: "No.14", sortOrder: 1400, figureName: "東さん", rarity: "R", concept: "ガンプラ製作中", image: "images/東さん_ガンプラ.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "15", seriesId: "S1", displayNo: "No.15", sortOrder: 1500, figureName: "よっしー", rarity: "R", concept: "LIFE STORY撮影", image: "images/よっしー_LS撮影.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "16", seriesId: "S1", displayNo: "No.16", sortOrder: 1600, figureName: "じんさん", rarity: "R", concept: "ボードゲーム", image: "images/じんさん_ボドゲ.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "17", seriesId: "S1", displayNo: "No.17", sortOrder: 1700, figureName: "海賊けん", rarity: "R", concept: "講演", image: "images/ケンさん_講演.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "18", seriesId: "S1", displayNo: "No.18", sortOrder: 1800, figureName: "しゅうへい", rarity: "R", concept: "乾杯", image: "images/しゅう_乾杯.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "19", seriesId: "S1", displayNo: "No.19", sortOrder: 1900, figureName: "とっとくん", rarity: "R", concept: "ハウスクリーニング", image: "images/とっとくん_ハウスクリーニング.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "20", seriesId: "S1", displayNo: "No.20", sortOrder: 2000, figureName: "かずま", rarity: "R", concept: "内臓整体", image: "images/かずま_内臓整体.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "32", seriesId: "S1", displayNo: "No.21", sortOrder: 2100, figureName: "たかちゃん", rarity: "R", concept: "焼酎呑み", image: "images/たかちゃん_赤兎馬.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "21", seriesId: "S1", displayNo: "No.22", sortOrder: 2200, figureName: "だいちさん", rarity: "R", concept: "算命学", image: "images/だいちさん_占い中.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "22", seriesId: "S1", displayNo: "No.23", sortOrder: 2300, figureName: "ゆかちゃん", rarity: "R", concept: "西洋占星術", image: "images/ゆかちゃん_占い中.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "23", seriesId: "S1", displayNo: "No.24", sortOrder: 2400, figureName: "おかっち", rarity: "R", concept: "よもぎ蒸し", image: "images/おかっち_よもぎ蒸し.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "37", seriesId: "S1", displayNo: "No.25", sortOrder: 2500, figureName: "だいちゃん", rarity: "R", concept: "オンライン講座", image: "images/だいちゃん_オンライン講座.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "24", seriesId: "S1", displayNo: "No.26", sortOrder: 2600, figureName: "ぐっちょん", rarity: "R", concept: "お仕事中", image: "images/ぐっちょん_会計.png", dropRate: 18, exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "25", seriesId: "S1", displayNo: "No.27", sortOrder: 2700, figureName: "東さん", rarity: "SR", concept: "編集長", image: "images/東さん_編集長.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "26", seriesId: "S1", displayNo: "No.28", sortOrder: 2800, figureName: "よっしー", rarity: "SR", concept: "書籍出版", image: "images/よっしー_書籍出版.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "27", seriesId: "S1", displayNo: "No.29", sortOrder: 2900, figureName: "じんさん", rarity: "SR", concept: "木工職人", image: "images/じんさん_木工.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "28", seriesId: "S1", displayNo: "No.30", sortOrder: 3000, figureName: "海賊けん", rarity: "SR", concept: "ベース演奏", image: "images/ケンさん_ベース演奏.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "29", seriesId: "S1", displayNo: "No.31", sortOrder: 3100, figureName: "しゅうへい", rarity: "SR", concept: "LIFE ARTS LIVE", image: "images/しゅう_MC.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "30", seriesId: "S1", displayNo: "No.32", sortOrder: 3200, figureName: "とっとくん", rarity: "SR", concept: "デザイナー", image: "images/とっとくん_デザイナー.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "33", seriesId: "S1", displayNo: "No.33", sortOrder: 3300, figureName: "たかちゃん", rarity: "SR", concept: "オンライン講座", image: "images/たかちゃん_オンライン講座.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "38", seriesId: "S1", displayNo: "No.34", sortOrder: 3400, figureName: "だいちさん", rarity: "SR", concept: "シェアハウスの日常", image: "images/だいちさん_シェアハウス日常.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "34", seriesId: "S1", displayNo: "No.35", sortOrder: 3500, figureName: "ゆかちゃん", rarity: "SR", concept: "あべちゃんメイク", image: "images/ゆか_あべちゃんメイク.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "35", seriesId: "S1", displayNo: "No.36", sortOrder: 3600, figureName: "おかっち", rarity: "SR", concept: "パンプアップ", image: "images/おかっち_ジム.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "39", seriesId: "S1", displayNo: "No.37", sortOrder: 3700, figureName: "だいちゃん", rarity: "SR", concept: "ライブ配信", image: "images/だいちゃん_ライブ配信.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "36", seriesId: "S1", displayNo: "No.38", sortOrder: 3800, figureName: "ぐっちょん", rarity: "SR", concept: "本収集", image: "images/ぐっちょん_本収集.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "31", seriesId: "S1", displayNo: "No.39", sortOrder: 3900, figureName: "かずま", rarity: "SR", concept: "研究", image: "images/かずま_研究.png", dropRate: 10, exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+    { figureId: "40", seriesId: "S1", displayNo: "EX", sortOrder: 9999, figureName: "第1弾EX", rarity: "EX", concept: "ポイント交換限定", image: "images/第1弾_EX.png", dropRate: 0, exchangeCost: 50, isEx: true, isDrawTarget: false, isActive: true }
+  ];
+}
+
+function ensureSheetColumns_(sheet, requiredHeaders) {
+  if (sheet.getLastRow() === 0) sheet.appendRow(requiredHeaders);
+  let headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+  requiredHeaders.forEach(header => {
+    if (headers.indexOf(header) !== -1) return;
+    sheet.insertColumnAfter(sheet.getLastColumn());
+    sheet.getRange(1, sheet.getLastColumn()).setValue(header);
+    headers.push(header);
+  });
+  return headers;
+}
+
+function ensureGachaFigureMasterSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(GACHA_FIGURE_MASTER_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(GACHA_FIGURE_MASTER_SHEET_NAME);
+  const headers = ensureSheetColumns_(sheet, [
+    "figureId", "seriesId", "displayNo", "sortOrder", "figureName", "rarity", "concept", "image",
+    "dropRate", "exchangeCost", "isEx", "isDrawTarget", "isActive"
+  ]);
+  if (sheet.getLastRow() < 2) {
+    const rows = getDefaultGachaFigureMaster_().map(item => headers.map(header => item[header] !== undefined ? item[header] : ""));
+    if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+  return sheet;
+}
+
+function ensureGachaExchangePointsSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(GACHA_EXCHANGE_POINTS_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(GACHA_EXCHANGE_POINTS_SHEET_NAME);
+  ensureSheetColumns_(sheet, ["id", "userId", "seriesId", "exchangePoints", "updatedAt"]);
+  return sheet;
+}
+
+function ensureGachaExchangeHistorySheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(GACHA_EXCHANGE_HISTORY_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(GACHA_EXCHANGE_HISTORY_SHEET_NAME);
+  ensureSheetColumns_(sheet, ["id", "requestId", "userId", "seriesId", "figureId", "exchangeType", "usedPoints", "exchangedAt"]);
+  return sheet;
+}
+
+function ensureGachaActionRequestsSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(GACHA_ACTION_REQUESTS_SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(GACHA_ACTION_REQUESTS_SHEET_NAME);
+  ensureSheetColumns_(sheet, ["id", "requestId", "userId", "action", "responseJson", "createdAt"]);
+  return sheet;
+}
+
+function toBoolean_(value, fallback) {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  const text = String(value === undefined || value === null ? "" : value).trim().toLowerCase();
+  if (["true", "1", "yes", "y", "on", "有効"].indexOf(text) >= 0) return true;
+  if (["false", "0", "no", "n", "off", "無効"].indexOf(text) >= 0) return false;
+  return fallback;
+}
+
+function normalizeGachaMasterFigure_(row) {
+  const rarity = String(row.rarity || "").trim().toUpperCase();
+  return {
+    figureId: String(row.figureId || row.id || "").trim(),
+    seriesId: String(row.seriesId || "S1").trim(),
+    displayNo: String(row.displayNo || row.figureNo || "").trim(),
+    sortOrder: Number(row.sortOrder || 999999),
+    figureName: String(row.figureName || row.name || "").trim(),
+    rarity: rarity,
+    concept: String(row.concept || "").trim(),
+    image: String(row.image || "").trim(),
+    dropRate: Number(row.dropRate || 0),
+    exchangeCost: Number(row.exchangeCost || ({ N: 10, R: 20, SR: 30, EX: 50 }[rarity] || 0)),
+    isEx: toBoolean_(row.isEx, rarity === "EX"),
+    isDrawTarget: toBoolean_(row.isDrawTarget, rarity !== "EX"),
+    isActive: toBoolean_(row.isActive, true)
+  };
+}
+
+function getGachaFigureMaster_() {
+  const sheet = ensureGachaFigureMasterSheet_();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0] || [];
+  const fromSheet = values.slice(1)
+    .map(row => normalizeGachaMasterFigure_(rowToObj(headers, row)))
+    .filter(item => item.figureId);
+  const byId = {};
+  getDefaultGachaFigureMaster_().forEach(item => { byId[String(item.figureId)] = normalizeGachaMasterFigure_(item); });
+  fromSheet.forEach(item => { byId[String(item.figureId)] = item; });
+  return Object.keys(byId).map(key => byId[key]).sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function getGachaFigureById_(figureId) {
+  const id = String(figureId || "").trim();
+  return getGachaFigureMaster_().find(item => String(item.figureId) === id) || null;
+}
+
+function toClientGachaFigure_(figure) {
+  return {
+    id: Number(figure.figureId),
+    figureId: String(figure.figureId),
+    seriesId: figure.seriesId,
+    displayNo: figure.displayNo,
+    sortOrder: Number(figure.sortOrder || 0),
+    name: figure.figureName,
+    figureName: figure.figureName,
+    rarity: figure.rarity,
+    concept: figure.concept,
+    image: figure.image,
+    dropRate: Number(figure.dropRate || 0),
+    exchangeCost: Number(figure.exchangeCost || 0),
+    isEx: !!figure.isEx,
+    isDrawTarget: !!figure.isDrawTarget,
+    isActive: !!figure.isActive
+  };
+}
+
+function getExchangePointsMapByUserId_(userId) {
+  const sheet = ensureGachaExchangePointsSheet_();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return {};
+  const headers = values[0];
+  const map = {};
+  values.slice(1).map(row => rowToObj(headers, row)).forEach(row => {
+    if (String(row.userId || "") !== String(userId || "")) return;
+    const seriesId = String(row.seriesId || "").trim();
+    if (!seriesId) return;
+    map[seriesId] = Math.max(0, Math.floor(Number(row.exchangePoints || 0)));
+  });
+  return map;
+}
+
+function setExchangePointBalance_(userId, seriesId, nextPoints) {
+  const sheet = ensureGachaExchangePointsSheet_();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const userIdCol = headers.indexOf("userId");
+  const seriesIdCol = headers.indexOf("seriesId");
+  const pointsCol = headers.indexOf("exchangePoints");
+  const updatedAtCol = headers.indexOf("updatedAt");
+  const safePoints = Math.max(0, Math.floor(Number(nextPoints || 0)));
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][userIdCol] || "") === String(userId) && String(values[i][seriesIdCol] || "") === String(seriesId)) {
+      sheet.getRange(i + 1, pointsCol + 1).setValue(safePoints);
+      if (updatedAtCol >= 0) sheet.getRange(i + 1, updatedAtCol + 1).setValue(formatDateTime(new Date()));
+      return safePoints;
+    }
+  }
+  const rowObj = {
+    id: "gep_" + new Date().getTime().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
+    userId: String(userId || ""),
+    seriesId: String(seriesId || ""),
+    exchangePoints: safePoints,
+    updatedAt: formatDateTime(new Date())
+  };
+  sheet.appendRow(headers.map(header => rowObj[header] !== undefined ? rowObj[header] : ""));
+  return safePoints;
+}
+
+function addExchangePoints_(userId, additions) {
+  const current = getExchangePointsMapByUserId_(userId);
+  Object.keys(additions || {}).forEach(seriesId => {
+    const add = Math.max(0, Math.floor(Number(additions[seriesId] || 0)));
+    if (!add) return;
+    current[seriesId] = setExchangePointBalance_(userId, seriesId, Number(current[seriesId] || 0) + add);
+  });
+  return current;
+}
+
+function getExchangeHistoryRowsByUserId_(userId) {
+  const sheet = ensureGachaExchangeHistorySheet_();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const headers = values[0];
+  return values.slice(1).map(row => rowToObj(headers, row)).filter(row => String(row.userId || "") === String(userId || ""));
+}
+
+function appendExchangeHistory_(entry) {
+  const sheet = ensureGachaExchangeHistorySheet_();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const rowObj = {
+    id: "geh_" + new Date().getTime().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
+    requestId: String(entry.requestId || ""),
+    userId: String(entry.userId || ""),
+    seriesId: String(entry.seriesId || ""),
+    figureId: String(entry.figureId || ""),
+    exchangeType: String(entry.exchangeType || "NORMAL"),
+    usedPoints: Math.max(0, Math.floor(Number(entry.usedPoints || 0))),
+    exchangedAt: formatDateTime(new Date())
+  };
+  sheet.appendRow(headers.map(header => rowObj[header] !== undefined ? rowObj[header] : ""));
+}
+
+function getStoredActionResponse_(userId, action, requestId) {
+  const rid = String(requestId || "").trim();
+  if (!rid) return null;
+  const sheet = ensureGachaActionRequestsSheet_();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return null;
+  const headers = values[0];
+  const rows = values.slice(1).map(row => rowToObj(headers, row));
+  const found = rows.find(row => String(row.userId || "") === String(userId || "") && String(row.action || "") === String(action || "") && String(row.requestId || "") === rid);
+  if (!found || !found.responseJson) return null;
+  try { return JSON.parse(String(found.responseJson)); } catch (_err) { return null; }
+}
+
+function storeActionResponse_(userId, action, requestId, response) {
+  const rid = String(requestId || "").trim();
+  if (!rid) return;
+  const sheet = ensureGachaActionRequestsSheet_();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const rowObj = {
+    id: "gar_" + new Date().getTime().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
+    requestId: rid,
+    userId: String(userId || ""),
+    action: String(action || ""),
+    responseJson: JSON.stringify(response || {}),
+    createdAt: formatDateTime(new Date())
+  };
+  sheet.appendRow(headers.map(header => rowObj[header] !== undefined ? rowObj[header] : ""));
+}
+
+function buildSeriesStatus_(master, inventory) {
+  const status = {};
+  master.filter(item => item.isActive).forEach(item => {
+    const sid = item.seriesId;
+    if (!status[sid]) status[sid] = { ownedNormal: 0, totalNormal: 0, isComplete: false, missingByRarity: { N: 0, R: 0, SR: 0 }, hasEx: false };
+    const owned = Number(inventory[item.figureId] || 0) > 0;
+    if (item.isEx) {
+      status[sid].hasEx = owned;
+      return;
+    }
+    status[sid].totalNormal += 1;
+    if (owned) status[sid].ownedNormal += 1;
+    else if (status[sid].missingByRarity[item.rarity] !== undefined) status[sid].missingByRarity[item.rarity] += 1;
+  });
+  Object.keys(status).forEach(sid => {
+    status[sid].isComplete = status[sid].totalNormal > 0 && status[sid].ownedNormal >= status[sid].totalNormal;
+  });
+  return status;
+}
+
+function countUserExchanges_(userId) {
+  return getExchangeHistoryRowsByUserId_(userId).length;
+}
+
+
 const GACHA_INVENTORY_SHEET_NAME = "GachaInventory";
 
 function ensureGachaInventorySheet() {
@@ -2362,10 +2691,21 @@ function requireValidGachaSession(ticket) {
 
   return session;
 }
-
 function normalizeGachaResult(result) {
+  const figureId = String(result.id || result.figureId || "").trim();
+  const master = getGachaFigureById_(figureId);
+  if (master) {
+    return {
+      figureId: master.figureId,
+      figureNo: master.displayNo,
+      figureName: master.figureName,
+      rarity: master.rarity,
+      concept: master.concept,
+      image: master.image
+    };
+  }
   return {
-    figureId: String(result.id || result.figureId || "").trim(),
+    figureId: figureId,
     figureNo: String(result.no || result.figureNo || "").trim(),
     figureName: String(result.name || result.figureName || "").trim(),
     rarity: String(result.rarity || "").trim(),
@@ -2408,46 +2748,33 @@ function buildGachaInventory(rows) {
 
   return inventory;
 }
-
-function getGachaTotalSpins(rows) {
-  return rows.reduce((sum, row) => {
+function getGachaTotalSpins(rows, userId) {
+  const totalQuantity = rows.reduce((sum, row) => {
     const quantity = Math.max(0, Math.floor(Number(row.quantity || 0)));
     return sum + quantity;
   }, 0);
+  const exchangeCount = userId ? countUserExchanges_(userId) : 0;
+  return Math.max(0, totalQuantity - exchangeCount);
 }
-
 function getGachaCollection(ticket) {
   const session = requireValidGachaSession(ticket);
   const rows = getGachaInventoryRowsByUserId(session.userId);
   const inventory = buildGachaInventory(rows);
+  const master = getGachaFigureMaster_();
 
   return {
     ok: true,
     userId: session.userId,
     inventory: inventory,
-    totalSpins: getGachaTotalSpins(rows),
+    totalSpins: getGachaTotalSpins(rows, session.userId),
+    exchangePoints: getExchangePointsMapByUserId_(session.userId),
+    seriesStatus: buildSeriesStatus_(master, inventory),
+    figures: master.filter(item => item.isActive).map(toClientGachaFigure_),
     results: rows
   };
 }
-
-function saveGachaResult(ticket, result) {
-  const session = requireValidGachaSession(ticket);
-  const normalized = normalizeGachaResult(result);
-
-  if (!normalized.figureId) {
-    throw fail("figureId is required", "BAD_REQUEST");
-  }
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-
-  try {
-    upsertGachaInventory(session.userId, ticket, normalized, 1);
-  } finally {
-    lock.releaseLock();
-  }
-
-  return getGachaCollection(ticket);
+function saveGachaResult(ticket, result, requestId) {
+  return processGachaDrawResults_(ticket, [result], requestId, "saveGachaResult");
 }
 
 function upsertGachaInventory(userId, ticket, normalized, addQuantity) {
@@ -2531,6 +2858,55 @@ function upsertGachaInventory(userId, ticket, normalized, addQuantity) {
   sheet.appendRow(rowData);
 }
 
+
+function exchangeGachaFigure(ticket, figureId, requestId) {
+  const session = requireValidGachaSession(ticket);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const stored = getStoredActionResponse_(session.userId, "exchangeFigure", requestId);
+    if (stored) return stored;
+
+    const master = getGachaFigureById_(figureId);
+    if (!master || !master.isActive) throw fail("交換対象が見つかりません。", "FIGURE_NOT_FOUND");
+
+    const rows = getGachaInventoryRowsByUserId(session.userId);
+    const inventory = buildGachaInventory(rows);
+    if (Number(inventory[master.figureId] || 0) > 0) throw fail("すでに所持しています。", "ALREADY_OWNED");
+
+    const status = buildSeriesStatus_(getGachaFigureMaster_(), inventory);
+    if (master.isEx && !(status[master.seriesId] && status[master.seriesId].isComplete)) {
+      throw fail("通常フィギュアをコンプリートするとEX交換が解放されます。", "SERIES_NOT_COMPLETE");
+    }
+    if (!master.isEx && !["N", "R", "SR"].includes(master.rarity)) {
+      throw fail("交換対象ではありません。", "INVALID_EXCHANGE_FIGURE");
+    }
+
+    const points = getExchangePointsMapByUserId_(session.userId);
+    const balance = Math.max(0, Math.floor(Number(points[master.seriesId] || 0)));
+    const cost = Math.max(0, Math.floor(Number(master.exchangeCost || 0)));
+    if (balance < cost) throw fail("交換ptが不足しています。", "NOT_ENOUGH_EXCHANGE_POINTS");
+
+    setExchangePointBalance_(session.userId, master.seriesId, balance - cost);
+    upsertGachaInventory(session.userId, ticket, normalizeGachaResult({ figureId: master.figureId }), 1);
+    appendExchangeHistory_({
+      requestId: requestId,
+      userId: session.userId,
+      seriesId: master.seriesId,
+      figureId: master.figureId,
+      exchangeType: master.isEx ? "EX" : "NORMAL",
+      usedPoints: cost
+    });
+
+    const response = getGachaCollection(ticket);
+    response.exchangedFigure = toClientGachaFigure_(master);
+    storeActionResponse_(session.userId, "exchangeFigure", requestId, response);
+    return response;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function importLocalGachaInventory(ticket, items) {
   const session = requireValidGachaSession(ticket);
   const existingRows = getGachaInventoryRowsByUserId(session.userId);
@@ -2543,7 +2919,7 @@ function importLocalGachaInventory(ticket, items) {
       reason: "server_history_exists",
       userId: session.userId,
       inventory: buildGachaInventory(existingRows),
-      totalSpins: getGachaTotalSpins(existingRows),
+      totalSpins: getGachaTotalSpins(existingRows, session.userId),
       results: existingRows
     };
   }
