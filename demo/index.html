@@ -1072,19 +1072,28 @@
       min-width: 0;
       margin-top: 2px;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr);
       align-items: center;
       justify-items: stretch;
-      gap: 10px;
-      text-align: left;
+      gap: 6px;
+      text-align: center;
     }
     .item--exchange .exchange-btn {
       width: 100%;
       min-height: 38px;
     }
     .item--exchange .exchange-note {
-      text-align: right;
-      white-space: nowrap;
+      width: 100%;
+      text-align: center;
+      white-space: normal;
+    }
+    .exchange-btn.is-processing {
+      cursor: wait;
+      opacity: 0.72;
+    }
+    .exchange-note.is-processing {
+      color: #9a3412;
+      font-weight: 800;
     }
     .item-text--exchange {
       margin-top: 7px;
@@ -1176,7 +1185,7 @@
         gap: 6px;
       }
       .item--exchange .exchange-note {
-        text-align: left;
+        text-align: center;
         white-space: normal;
       }
       .exchange-btn { padding: 9px 10px; font-size: 12px; }
@@ -1573,11 +1582,29 @@
       if (exchangeProcessing) return;
       const figure = FIGURES.find(item => String(item.id) === String(figureId));
       if (!figure) return;
-      const label = figure.isEx ? `${getSeriesLabel(figure.seriesId)}EX` : `${getFigureNo(figure)} ${figure.name}`;
+
+      // 交換確定前は中身が分からないよう、確認表示は番号だけにする。
+      const label = getFigureNo(figure);
       if (!confirm(`${label}を${figure.exchangeCost}交換ptで交換しますか？`)) return;
 
       exchangeProcessing = true;
-      if (clickedButton) clickedButton.disabled = true;
+
+      const exchangeActions = clickedButton ? clickedButton.closest(".exchange-actions") : null;
+      const exchangeNote = exchangeActions ? exchangeActions.querySelector(".exchange-note") : null;
+
+      // 通信完了まで交換中であることを明示し、他の交換ボタンも一時的に無効化する。
+      document.querySelectorAll("[data-exchange-figure]").forEach(button => {
+        button.disabled = true;
+      });
+      if (clickedButton) {
+        clickedButton.textContent = "交換中...";
+        clickedButton.classList.add("is-processing");
+      }
+      if (exchangeNote) {
+        exchangeNote.textContent = "交換処理中です";
+        exchangeNote.classList.add("is-processing");
+      }
+
       try {
         const data = await callNewsApiFromGacha("exchangeFigure", {
           ticket: gachaTicket,
