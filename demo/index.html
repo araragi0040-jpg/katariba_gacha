@@ -1197,6 +1197,78 @@
       }
     }
 
+
+    /* =========================
+       交換確認ポップアップ
+       ブラウザ標準confirm/alertを使わず、サイト名表示を出さない
+    ========================= */
+    .exchange-dialog {
+      position: fixed;
+      inset: 0;
+      z-index: 10020;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .exchange-dialog.is-open { display: flex; }
+    .exchange-dialog__scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,23,42,0.52);
+      backdrop-filter: blur(6px);
+    }
+    .exchange-dialog__panel {
+      position: relative;
+      z-index: 1;
+      width: min(360px, 100%);
+      border-radius: 24px;
+      padding: 22px 20px 18px;
+      background: linear-gradient(180deg, #fffaf4 0%, #ffffff 100%);
+      border: 1px solid rgba(255,255,255,0.92);
+      box-shadow: 0 24px 60px rgba(15,23,42,0.22);
+      text-align: center;
+    }
+    .exchange-dialog__title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #7c2d12;
+    }
+    .exchange-dialog__message {
+      margin-top: 12px;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+    .exchange-dialog__actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .exchange-dialog__actions.is-single {
+      grid-template-columns: 1fr;
+    }
+    .exchange-dialog__btn {
+      min-height: 42px;
+      border: none;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .exchange-dialog__btn--cancel {
+      color: #475569;
+      background: #e2e8f0;
+    }
+    .exchange-dialog__btn--confirm {
+      color: #fff;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+    }
+
   </style>
 </head>
 <body class="is-gacha-page">
@@ -1207,7 +1279,6 @@
       </div>
       <div class="status-row">
         <div class="point-box">保有pt：<span id="newsPoints">--pt</span></div>
-        <div class="pill">総回転数: <span id="spinCount">0</span></div>
       </div>
       <button id="backToNewsBtn" class="back-news-btn" type="button">ニュースサイトへ戻る</button>
     </div>
@@ -1276,6 +1347,19 @@
           </div>
         </div>
         <div id="tabContent"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="exchangeDialog" class="exchange-dialog" aria-hidden="true">
+    <div id="exchangeDialogScrim" class="exchange-dialog__scrim"></div>
+    <div class="exchange-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="exchangeDialogTitle">
+      <div id="exchangeDialogTitle" class="exchange-dialog__title">交換確認</div>
+      <div id="exchangeDialogMessage" class="exchange-dialog__message"></div>
+      <div id="exchangeDialogActions" class="exchange-dialog__actions">
+        <button id="exchangeDialogCancel" class="exchange-dialog__btn exchange-dialog__btn--cancel" type="button">キャンセル</button>
+        <button id="exchangeDialogConfirm" class="exchange-dialog__btn exchange-dialog__btn--confirm" type="button">交換する</button>
       </div>
     </div>
   </div>
@@ -1578,6 +1662,53 @@
       return drawResult && drawResult.isNew ? "NEW" : `＋${point}pt`;
     }
 
+    function showExchangeDialog(options = {}) {
+      const modal = document.getElementById("exchangeDialog");
+      const title = document.getElementById("exchangeDialogTitle");
+      const message = document.getElementById("exchangeDialogMessage");
+      const actions = document.getElementById("exchangeDialogActions");
+      const cancelBtn = document.getElementById("exchangeDialogCancel");
+      const confirmBtn = document.getElementById("exchangeDialogConfirm");
+      const scrim = document.getElementById("exchangeDialogScrim");
+
+      if (!modal || !title || !message || !actions || !cancelBtn || !confirmBtn || !scrim) {
+        return Promise.resolve(false);
+      }
+
+      const cancelText = String(options.cancelText || "").trim();
+      title.textContent = options.title || "確認";
+      message.textContent = options.message || "";
+      confirmBtn.textContent = options.confirmText || "OK";
+      cancelBtn.textContent = cancelText || "キャンセル";
+      cancelBtn.hidden = !cancelText;
+      actions.classList.toggle("is-single", !cancelText);
+
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+
+      return new Promise(resolve => {
+        let settled = false;
+
+        const close = value => {
+          if (settled) return;
+          settled = true;
+          modal.classList.remove("is-open");
+          modal.setAttribute("aria-hidden", "true");
+          document.body.style.overflow = "";
+          confirmBtn.onclick = null;
+          cancelBtn.onclick = null;
+          scrim.onclick = null;
+          resolve(value);
+        };
+
+        confirmBtn.onclick = () => close(true);
+        cancelBtn.onclick = () => close(false);
+        scrim.onclick = () => close(cancelText ? false : true);
+        confirmBtn.focus();
+      });
+    }
+
     async function exchangeFigureFromCollection(figureId, clickedButton) {
       if (exchangeProcessing) return;
       const figure = FIGURES.find(item => String(item.id) === String(figureId));
@@ -1585,7 +1716,13 @@
 
       // 交換確定前は中身が分からないよう、確認表示は番号だけにする。
       const label = getFigureNo(figure);
-      if (!confirm(`${label}を${figure.exchangeCost}交換ptで交換しますか？`)) return;
+      const confirmed = await showExchangeDialog({
+        title: "交換確認",
+        message: `${label}を${figure.exchangeCost}交換ptで交換しますか？`,
+        confirmText: "交換する",
+        cancelText: "キャンセル"
+      });
+      if (!confirmed) return;
 
       exchangeProcessing = true;
 
@@ -1617,14 +1754,26 @@
             ALREADY_OWNED: "すでに所持しています。",
             SERIES_NOT_COMPLETE: "通常フィギュアをコンプリートするとEX交換が解放されます。"
           };
-          alert(messageMap[data.code] || data.message || "交換に失敗しました。");
+          await showExchangeDialog({
+            title: "交換できませんでした",
+            message: messageMap[data.code] || data.message || "交換に失敗しました。",
+            confirmText: "閉じる"
+          });
           return;
         }
         applyServerCollection(data);
-        alert(`${label}を交換しました。`);
+        await showExchangeDialog({
+          title: "交換完了",
+          message: `${label}を交換しました。`,
+          confirmText: "閉じる"
+        });
       } catch (err) {
         console.error("交換処理中のエラー:", err);
-        alert("交換処理中にエラーが発生しました。");
+        await showExchangeDialog({
+          title: "交換エラー",
+          message: "交換処理中にエラーが発生しました。",
+          confirmText: "閉じる"
+        });
       } finally {
         exchangeProcessing = false;
         renderTab();
@@ -1734,7 +1883,7 @@
       const rate = total === 0 ? 0 : Math.round((owned / total) * 100);
       collectionText.textContent = `${owned}/${total}`;
       progressBar.style.width = `${rate}%`;
-      spinCount.textContent = totalSpins;
+      if (spinCount) spinCount.textContent = totalSpins;
     }
     function renderCollectionTab() {
       const seriesHtml = getSeriesIds().map(seriesId => {
