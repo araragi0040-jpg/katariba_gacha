@@ -2474,6 +2474,53 @@ function ensureGachaFigureMasterSheet_() {
   return sheet;
 }
 
+/**
+ * GASエディタから実行。コード内マスターの未登録行のみ追記する。
+ * 今後の弾も getDefaultGachaFigureMaster_ に追加してからこの関数を再実行する。
+ * figureId が登録済みの行は、名称・確率・画像・独自列を含め変更しない。
+ */
+function syncMissingGachaFiguresToMaster() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const defaults = getDefaultGachaFigureMaster_();
+    const defaultIds = new Set();
+    defaults.forEach(item => {
+      const id = String(item.figureId || '').trim();
+      if (!id || defaultIds.has(id)) throw new Error('初期マスターのfigureIdが空または重複しています: ' + id);
+      defaultIds.add(id);
+    });
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(GACHA_FIGURE_MASTER_SHEET_NAME);
+    if (!sheet) sheet = ss.insertSheet(GACHA_FIGURE_MASTER_SHEET_NAME);
+    const headers = ensureSheetColumns_(sheet, [
+      'figureId', 'seriesId', 'displayNo', 'sortOrder', 'figureName', 'rarity', 'concept', 'image',
+      'dropRate', 'exchangeCost', 'isEx', 'isDrawTarget', 'isActive'
+    ]);
+    const values = sheet.getDataRange().getValues();
+    const idColumn = headers.indexOf('figureId');
+    const existingIds = new Set(values.slice(1).map(row => String(row[idColumn] == null ? '' : row[idColumn]).trim()));
+    const missing = defaults.filter(item => !existingIds.has(String(item.figureId).trim()));
+    if (missing.length) {
+      const rows = missing.map(item => headers.map(header => item[header] !== undefined ? item[header] : ''));
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+    }
+    const addedBySeries = {};
+    missing.forEach(item => { addedBySeries[item.seriesId] = (addedBySeries[item.seriesId] || 0) + 1; });
+    const result = {
+      added: missing.length,
+      skipped: defaults.length - missing.length,
+      addedBySeries: addedBySeries,
+      addedFigureIds: missing.map(item => String(item.figureId))
+    };
+    console.log(JSON.stringify(result));
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function ensureGachaExchangePointsSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(GACHA_EXCHANGE_POINTS_SHEET_NAME);
