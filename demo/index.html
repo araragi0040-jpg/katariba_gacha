@@ -387,7 +387,8 @@
     .figure-card img {
       width: 230px;
       height: 230px;
-      object-fit: cover;
+      object-fit: contain;
+      object-position: center;
       border-radius: 26px;
       box-shadow: 0 16px 36px rgba(15,23,42,0.16);
       background: #fff;
@@ -444,9 +445,13 @@
     }
 
     .result-tile img {
+      /* レア度・獲得状況のラベルと画像が重ならない表示領域を確保する。 */
+      box-sizing: border-box;
+      padding: 28px 6px 32px;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      object-position: center;
       display: block;
     }
 
@@ -551,10 +556,12 @@
     }
 
     .thumb {
+      flex-shrink: 0;
       width: 82px;
       height: 82px;
       border-radius: 20px;
-      object-fit: cover;
+      object-fit: contain;
+      object-position: center;
       background: #f3f4f6;
       box-shadow: inset 0 2px 4px rgba(255,255,255,0.4);
     }
