@@ -152,11 +152,11 @@ if (action === "getGachaCollection") {
 }
 
 if (action === "saveGachaResult") {
-  return outputJson(saveGachaResult(body.ticket || "", body.result || body.figure || {}, body.requestId || ""));
+  return outputJson(saveGachaResult(body.ticket || "", body.result || body.figure || {}, body.requestId || "", body.seriesId || "S1"));
 }
 
 if (action === "saveGachaResults") {
-  return outputJson(saveGachaResults(body.ticket || "", body.results || [], body.requestId || ""));
+  return outputJson(saveGachaResults(body.ticket || "", body.results || [], body.requestId || "", body.seriesId || "S1"));
 }
 
 if (action === "importLocalGachaInventory") {
@@ -168,7 +168,7 @@ if (action === "getExchangeStatus") {
 }
 
 if (action === "exchangeFigure" || action === "exchangeExFigure") {
-  return outputJson(exchangeGachaFigure(body.ticket || "", body.figureId || "", body.requestId || ""));
+  return outputJson(exchangeGachaFigure(body.ticket || "", body.figureId || "", body.requestId || "", body.pointAllocation));
 }
 
 if (action === "savePushSubscription") {
@@ -2241,7 +2241,7 @@ function refundGachaPoints(ticket, count) {
     lock.releaseLock();
   }
 }
-function processGachaDrawResults_(ticket, results, requestId, actionName) {
+function processGachaDrawResults_(ticket, results, requestId, actionName, seriesId) {
   const session = requireValidGachaSession(ticket);
   const list = Array.isArray(results) ? results : [];
   if (!list.length) return getGachaCollection(ticket);
@@ -2257,6 +2257,13 @@ function processGachaDrawResults_(ticket, results, requestId, actionName) {
     const pointAdditions = {};
     const drawResults = [];
 
+    // Validate the whole batch before writing any inventory.
+    list.forEach(result => {
+      const figure = getGachaFigureById_(result && (result.figureId || result.id));
+      if (!figure || !figure.isActive || !figure.isDrawTarget || figure.isEx || figure.seriesId !== String(seriesId || 'S1')) {
+        throw fail('選択した弾の抽選対象ではありません。', 'INVALID_GACHA_FIGURE');
+      }
+    });
     list.forEach((result, resultIndex) => {
       const figureId = String(result && (result.figureId || result.id) || "").trim();
       const master = getGachaFigureById_(figureId);
@@ -2290,8 +2297,8 @@ function processGachaDrawResults_(ticket, results, requestId, actionName) {
   }
 }
 
-function saveGachaResults(ticket, results, requestId) {
-  return processGachaDrawResults_(ticket, results, requestId, "saveGachaResults");
+function saveGachaResults(ticket, results, requestId, seriesId) {
+  return processGachaDrawResults_(ticket, results, requestId, "saveGachaResults", seriesId);
 }
 
 function findGachaSessionByTicket(ticket) {
@@ -2457,7 +2464,7 @@ function ensureGachaExchangeHistorySheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(GACHA_EXCHANGE_HISTORY_SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(GACHA_EXCHANGE_HISTORY_SHEET_NAME);
-  ensureSheetColumns_(sheet, ["id", "requestId", "userId", "seriesId", "figureId", "exchangeType", "usedPoints", "exchangedAt"]);
+  ensureSheetColumns_(sheet, ["id", "requestId", "userId", "seriesId", "figureId", "exchangeType", "usedPoints", "exchangedAt", "pointAllocationJson"]);
   return sheet;
 }
 
@@ -2606,6 +2613,7 @@ function appendExchangeHistory_(entry) {
     figureId: String(entry.figureId || ""),
     exchangeType: String(entry.exchangeType || "NORMAL"),
     usedPoints: Math.max(0, Math.floor(Number(entry.usedPoints || 0))),
+    pointAllocationJson: String(entry.pointAllocationJson || ""),
     exchangedAt: formatDateTime(new Date())
   };
   sheet.appendRow(headers.map(header => rowObj[header] !== undefined ? rowObj[header] : ""));
@@ -2817,8 +2825,8 @@ function getGachaCollection(ticket) {
     results: rows
   };
 }
-function saveGachaResult(ticket, result, requestId) {
-  return processGachaDrawResults_(ticket, [result], requestId, "saveGachaResult");
+function saveGachaResult(ticket, result, requestId, seriesId) {
+  return processGachaDrawResults_(ticket, [result], requestId, "saveGachaResult", seriesId);
 }
 
 function upsertGachaInventory(userId, ticket, normalized, addQuantity) {
@@ -2903,7 +2911,7 @@ function upsertGachaInventory(userId, ticket, normalized, addQuantity) {
 }
 
 
-function exchangeGachaFigure(ticket, figureId, requestId) {
+function exchangeGachaFigure(ticket, figureId, requestId, pointAllocation) {
   const session = requireValidGachaSession(ticket);
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -2927,11 +2935,11 @@ function exchangeGachaFigure(ticket, figureId, requestId) {
     }
 
     const points = getExchangePointsMapByUserId_(session.userId);
-    const balance = Math.max(0, Math.floor(Number(points[master.seriesId] || 0)));
+    const allocation = validateExchangeAllocation_(master, points, pointAllocation);
     const cost = Math.max(0, Math.floor(Number(master.exchangeCost || 0)));
-    if (balance < cost) throw fail("交換ptが不足しています。", "NOT_ENOUGH_EXCHANGE_POINTS");
-
-    setExchangePointBalance_(session.userId, master.seriesId, balance - cost);
+    Object.keys(allocation).forEach(sid => {
+      if (allocation[sid] > 0) setExchangePointBalance_(session.userId, sid, Number(points[sid] || 0) - allocation[sid]);
+    });
     upsertGachaInventory(session.userId, ticket, normalizeGachaResult({ figureId: master.figureId }), 1);
     appendExchangeHistory_({
       requestId: requestId,
@@ -2939,7 +2947,8 @@ function exchangeGachaFigure(ticket, figureId, requestId) {
       seriesId: master.seriesId,
       figureId: master.figureId,
       exchangeType: master.isEx ? "EX" : "NORMAL",
-      usedPoints: cost
+      usedPoints: cost,
+      pointAllocationJson: JSON.stringify(allocation)
     });
 
     const response = getGachaCollection(ticket);
@@ -4172,4 +4181,20 @@ try {
 </script>
 </body>
 </html>`;
+}
+
+// Normal exchanges spend only their own series balance. EX can combine balances.
+function validateExchangeAllocation_(master, points, requested) {
+  const cost = Math.max(0, Math.floor(Number(master.exchangeCost || 0)));
+  const allocation = !master.isEx || requested == null ? { [master.seriesId]: cost } : requested;
+  if (!allocation || typeof allocation !== 'object' || Array.isArray(allocation)) throw fail('交換ptの配分が不正です。', 'INVALID_POINT_ALLOCATION');
+  let total = 0;
+  Object.keys(allocation).forEach(sid => {
+    const amount = allocation[sid];
+    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0) throw fail('交換ptの配分が不正です。', 'INVALID_POINT_ALLOCATION');
+    if (amount > Number(points[sid] || 0)) throw fail('交換ptが不足しています。', 'NOT_ENOUGH_EXCHANGE_POINTS');
+    total += amount;
+  });
+  if (total !== cost) throw fail('交換ptの合計が一致しません。', 'INVALID_POINT_ALLOCATION');
+  return allocation;
 }
