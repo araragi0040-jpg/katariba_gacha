@@ -1,0 +1,2473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>語り場ガチャ</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    html { scrollbar-gutter: stable; }
+
+    :root {
+      --bg1: #fff7ed;
+      --bg2: #ffffff;
+      --bg3: #eff6ff;
+      --text: #1f2937;
+      --muted: #64748b;
+      --card: rgba(255,255,255,0.82);
+      --line: rgba(148,163,184,0.22);
+      --shadow: 0 18px 45px rgba(15,23,42,0.10);
+      --shadow-soft: 0 10px 25px rgba(15,23,42,0.08);
+      --accent: #111827;
+      --accent-2: #fb923c;
+      --blue: #60a5fa;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(251,191,36,0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(96,165,250,0.14), transparent 26%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 42%, var(--bg3) 100%);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .top {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 40px;
+      letter-spacing: 0.02em;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pill,
+    .point-box {
+      background: rgba(255,255,255,0.86);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 18px;
+      padding: 12px 16px;
+      box-shadow: var(--shadow-soft);
+      font-weight: 700;
+    }
+
+    .back-news-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 800;
+      color: #7c2d12;
+      background: rgba(255,255,255,0.9);
+      box-shadow: var(--shadow-soft);
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .back-news-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 26px rgba(15,23,42,0.12);
+    }
+
+    .nav-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: min(360px, 100%);
+      gap: 8px;
+      padding: 8px;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 22px;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 18px;
+    }
+
+    .nav-btn {
+      border: none;
+      background: transparent;
+      color: #334155;
+      padding: 14px 18px;
+      min-width: 0;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .nav-btn.active {
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(15,23,42,0.22);
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .machine-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .machine-box {
+      min-height: calc(100vh - 240px);
+      border-radius: 30px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(255,255,255,0.85), rgba(255,255,255,0) 35%),
+        linear-gradient(180deg, #fecaca 0%, #fff1f2 45%, #fff7ed 100%);
+      border: 1px solid rgba(255,255,255,0.7);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .machine-box::before {
+      content: "";
+      position: absolute;
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.28);
+      filter: blur(8px);
+      top: -110px;
+      left: -100px;
+    }
+
+    .machine-stage {
+      position: relative;
+      width: 330px;
+      height: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .machine-body {
+      position: absolute;
+      inset: 0;
+      border-radius: 42px 42px 36px 36px;
+      background: linear-gradient(180deg, #ef4444 0%, #dc2626 65%, #b91c1c 100%);
+      box-shadow: inset 0 8px 16px rgba(255,255,255,0.22), 0 20px 35px rgba(185,28,28,0.18);
+    }
+
+    .machine-top {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 36%, rgba(255,255,255,0.22) 70%, rgba(255,255,255,0.08) 100%);
+      border: 12px solid rgba(255,255,255,0.75);
+      overflow: hidden;
+      backdrop-filter: blur(4px);
+      transition: transform 1s linear;
+    }
+
+    .machine-top.spinning { animation: spin 1s linear infinite; }
+
+    .capsule-dots {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 44px;
+      opacity: 0.82;
+    }
+
+    .dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      justify-self: center;
+      align-self: center;
+      box-shadow: inset 0 3px 6px rgba(255,255,255,0.4);
+    }
+
+    .dot:nth-child(4n+1) { background: #fdba74; }
+    .dot:nth-child(4n+2) { background: #86efac; }
+    .dot:nth-child(4n+3) { background: #93c5fd; }
+    .dot:nth-child(4n) { background: #f9a8d4; }
+
+    .machine-slot {
+      position: absolute;
+      bottom: 106px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 132px;
+      height: 20px;
+      border-radius: 999px;
+      background: #7f1d1d;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.35);
+    }
+
+    .machine-tray {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      height: 72px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+      border: 5px solid #cbd5e1;
+      box-shadow: inset 0 4px 10px rgba(255,255,255,0.65);
+    }
+
+    .handle-wrap {
+      position: absolute;
+      right: -18px;
+      top: 176px;
+      width: 100px;
+      height: 100px;
+      z-index: 2;
+    }
+
+    .handle-rod {
+      position: absolute;
+      right: 40px;
+      top: 42px;
+      width: 54px;
+      height: 12px;
+      border-radius: 999px;
+      background: #1f2937;
+      transform-origin: left center;
+      transition: transform 0.5s ease;
+    }
+
+    .handle-wrap.spinning .handle-rod { transform: rotate(140deg); }
+
+    .handle-knob {
+      position: absolute;
+      right: 0;
+      top: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #1f2937 0%, #0f172a 100%);
+      box-shadow: 0 8px 16px rgba(15,23,42,0.2);
+    }
+
+    .shine {
+      position: absolute;
+      inset: auto 46px 94px 46px;
+      height: 110px;
+      border-radius: 0 0 26px 26px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+      pointer-events: none;
+    }
+
+    @keyframes spin {
+      from { transform: translateX(-50%) rotate(0deg); }
+      to { transform: translateX(-50%) rotate(360deg); }
+    }
+
+    .spin-btn {
+      margin-top: 24px;
+      border: none;
+      border-radius: 18px;
+      padding: 16px 30px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+      cursor: pointer;
+      box-shadow: 0 14px 28px rgba(15,23,42,0.22);
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+      z-index: 1;
+      min-width: 180px;
+    }
+
+    .spin-btn:hover { transform: translateY(-1px); }
+    .spin-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .result-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .result-stage {
+      flex: 1;
+      min-height: 360px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at top, rgba(251,191,36,0.12), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px dashed #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .result-stage::before {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      filter: blur(10px);
+      top: -80px;
+      right: -40px;
+    }
+
+    .placeholder {
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.8;
+      z-index: 1;
+    }
+
+    .figure-card {
+      text-align: center;
+      width: 100%;
+      animation: pop 0.45s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .figure-card--single {
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.84) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .figure-card img {
+      width: 230px;
+      height: 230px;
+      object-fit: contain;
+      object-position: center;
+      border-radius: 26px;
+      box-shadow: 0 16px 36px rgba(15,23,42,0.16);
+      background: #fff;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .N { background: #e5e7eb; color: #374151; }
+    .R { background: #dbeafe; color: #1d4ed8; }
+    .SR { background: #ede9fe; color: #6d28d9; }
+    .SSR { background: #fef3c7; color: #b45309; }
+
+    .figure-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .figure-text {
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+
+    .count {
+      margin-top: 8px;
+      font-weight: 700;
+    }
+
+    .result-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .result-tile {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid rgba(226,232,240,0.9);
+      box-shadow: var(--shadow-soft);
+      aspect-ratio: 1 / 1;
+    }
+
+    .result-tile img {
+      /* レア度・獲得状況のラベルと画像が重ならない表示領域を確保する。 */
+      box-sizing: border-box;
+      padding: 28px 6px 32px;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+    }
+
+    .result-tile-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      margin: 0;
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(3px);
+    }
+
+    .progress-wrap {
+      margin-top: 16px;
+      background: rgba(255,255,255,0.95);
+      padding: 14px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(226,232,240,0.9);
+    }
+
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .bar {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #fb923c 0%, #60a5fa 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .collection-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .small-tabs {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(226,232,240,0.9);
+      padding: 8px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: #334155;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+      color: #fff;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(226,232,240,0.9);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .thumb {
+      flex-shrink: 0;
+      width: 82px;
+      height: 82px;
+      border-radius: 20px;
+      object-fit: contain;
+      object-position: center;
+      background: #f3f4f6;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4);
+    }
+
+    .thumb.locked { filter: grayscale(1); opacity: 0.34; }
+    .thumb--preview { cursor: zoom-in; }
+    .thumb--preview:focus-visible {
+      outline: 3px solid rgba(96,165,250,0.55);
+      outline-offset: 3px;
+    }
+    .item-main { flex: 1; min-width: 0; }
+    .item-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .item-name { font-weight: 700; margin-top: 4px; font-size: 15px; }
+    .item-text { color: var(--muted); font-size: 13px; margin-top: 4px; line-height: 1.5; }
+    .item-count { text-align: right; font-weight: 700; min-width: 56px; color: #0f172a; }
+
+    .gacha-loading-wrap {
+      width: 100%;
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 24px 16px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at center, rgba(251, 191, 36, 0.16), transparent 35%),
+        linear-gradient(180deg, #fffaf4 0%, #ffffff 100%);
+      border-radius: 24px;
+    }
+
+    .gacha-loading-wrap::before,
+    .gacha-loading-wrap::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .gacha-loading-wrap::before {
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(251, 191, 36, 0.14), transparent 70%);
+      top: -80px;
+      right: -40px;
+    }
+
+    .gacha-loading-wrap::after {
+      width: 170px;
+      height: 170px;
+      background: radial-gradient(circle, rgba(251, 146, 60, 0.10), transparent 70%);
+      bottom: -60px;
+      left: -40px;
+    }
+
+    .gacha-loading-ring {
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      border: 1px solid rgba(251, 146, 60, 0.24);
+      animation: gachaLoadingRotate 2.8s linear infinite;
+    }
+
+    .gacha-loading-ring.ring-2 {
+      width: 150px;
+      height: 150px;
+      animation-direction: reverse;
+      animation-duration: 2s;
+      opacity: 0.65;
+    }
+
+    .gacha-loading-particle {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 18px rgba(251, 191, 36, 0.8);
+    }
+
+    .gacha-loading-ring .gacha-loading-particle:nth-child(1) {
+      top: -6px;
+      left: calc(50% - 6px);
+      background: #fbbf24;
+    }
+
+    .gacha-loading-ring .gacha-loading-particle:nth-child(2) {
+      right: 18px;
+      bottom: 26px;
+      background: #fb923c;
+    }
+
+    .gacha-loading-ring .gacha-loading-particle:nth-child(3) {
+      left: 18px;
+      bottom: 26px;
+      background: #fde68a;
+    }
+
+    .gacha-loading-core {
+      position: relative;
+      z-index: 2;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.98), rgba(255,255,255,0.55)),
+        radial-gradient(circle at center, rgba(251, 191, 36, 0.18), rgba(251, 146, 60, 0.08));
+      box-shadow:
+        0 0 34px rgba(251, 191, 36, 0.26),
+        inset 0 0 16px rgba(255,255,255,0.9);
+    }
+
+    .gacha-loading-capsule {
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow:
+        0 16px 28px rgba(251, 146, 60, 0.18),
+        0 0 20px rgba(251, 191, 36, 0.34);
+      animation: gachaLoadingBounce 1.1s ease-in-out infinite;
+    }
+
+    .gacha-loading-capsule-top,
+    .gacha-loading-capsule-bottom { width: 100%; height: 50%; }
+    .gacha-loading-capsule-top { background: linear-gradient(180deg, #fff7ed, #ffedd5); }
+    .gacha-loading-capsule-bottom { background: linear-gradient(180deg, #fb923c, #f97316); }
+
+    .gacha-loading-title {
+      margin-top: 34px;
+      font-size: 19px;
+      font-weight: 800;
+      color: #7c2d12;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .gacha-loading-sub {
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #9a6b39;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .gacha-loading-dots { display: inline-flex; gap: 4px; margin-left: 4px; }
+    .gacha-loading-dots span {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #c2410c;
+      animation: gachaLoadingDots 1.2s infinite ease-in-out;
+    }
+    .gacha-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .gacha-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes gachaLoadingRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes gachaLoadingBounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.05); } }
+    @keyframes gachaLoadingDots { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; } 40% { transform: scale(1.2); opacity: 1; } }
+
+    .back-news-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at center, rgba(251, 191, 36, 0.18), transparent 30%),
+        rgba(255, 247, 237, 0.96);
+      backdrop-filter: blur(6px);
+    }
+
+    .back-news-overlay.is-open { display: flex; }
+
+    .back-news-card {
+      width: min(340px, 86vw);
+      min-height: 280px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, #fffaf4 0%, #fff 100%);
+      box-shadow: 0 24px 60px rgba(15,23,42,0.12), 0 8px 24px rgba(251,146,60,0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      padding: 28px 20px;
+    }
+
+    .back-news-orbit {
+      position: absolute;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      border: 1px solid rgba(251,146,60,0.28);
+      animation: backNewsRotate 3s linear infinite;
+    }
+
+    .back-news-orbit span {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #fbbf24;
+      box-shadow: 0 0 16px rgba(251,191,36,0.8);
+    }
+
+    .back-news-orbit span:nth-child(1) { top: -6px; left: calc(50% - 6px); }
+    .back-news-orbit span:nth-child(2) { right: 12px; bottom: 24px; background: #fb923c; }
+    .back-news-orbit span:nth-child(3) { left: 12px; bottom: 24px; background: #fde68a; }
+
+    .back-news-core {
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.98), rgba(255,255,255,0.55)),
+        radial-gradient(circle at center, rgba(251,191,36,0.22), rgba(251,146,60,0.08));
+      box-shadow: 0 0 32px rgba(251,191,36,0.3), inset 0 0 18px rgba(255,255,255,0.8);
+      animation: backNewsPulse 1.4s ease-in-out infinite;
+      z-index: 1;
+    }
+
+    .back-news-title {
+      margin-top: 30px;
+      font-size: 19px;
+      font-weight: 800;
+      color: #7c2d12;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .back-news-sub {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #9a6b39;
+      text-align: center;
+      z-index: 1;
+    }
+
+    @keyframes backNewsRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes backNewsPulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.08); opacity: 1; } }
+
+    @media (max-width: 980px) {
+      .machine-layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 14px; }
+      h1 { font-size: 28px; }
+      .nav-tabs { width: 100%; display: grid; }
+      .nav-btn { padding: 12px 10px; font-size: 14px; }
+      .machine-box { min-height: calc(100vh - 210px); padding: 18px 14px 16px; }
+      .machine-stage { width: 250px; height: 320px; }
+      .machine-body { border-radius: 34px 34px 28px 28px; }
+      .machine-top { width: 168px; height: 168px; top: 18px; border-width: 9px; }
+      .capsule-dots { padding: 34px; gap: 8px; }
+      .dot { width: 24px; height: 24px; }
+      .machine-slot { bottom: 82px; width: 102px; height: 15px; }
+      .machine-tray { bottom: 24px; width: 138px; height: 54px; border-width: 4px; }
+      .handle-wrap { top: 134px; right: -10px; width: 82px; height: 82px; }
+      .handle-rod { right: 30px; top: 34px; width: 44px; height: 10px; }
+      .handle-knob { width: 40px; height: 40px; top: 16px; }
+      .shine { inset: auto 34px 72px 34px; height: 82px; }
+      .spin-btn { margin-top: 14px; padding: 14px 22px; font-size: 15px; }
+      .figure-card img { width: 180px; height: 180px; }
+      .item { align-items: flex-start; }
+      .item-count { min-width: 42px; }
+    }
+
+    /* =========================
+   ガチャボタン横並び
+========================= */
+
+.gacha-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, 100%);
+  margin-top: 22px;
+  position: relative;
+  z-index: 2;
+}
+
+.gacha-actions .spin-btn {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* =========================
+   スマホ時：ガチャ画面を1画面に収める
+========================= */
+
+@media (max-width: 640px) {
+  body.is-gacha-page {
+    overflow: hidden;
+  }
+
+  body.is-gacha-page .wrap {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  body.is-gacha-page .top {
+    flex: 0 0 auto;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  body.is-gacha-page h1 {
+    font-size: 24px;
+  }
+
+  body.is-gacha-page .status-row {
+    gap: 8px;
+  }
+
+  body.is-gacha-page .pill,
+  body.is-gacha-page .point-box {
+    padding: 8px 10px;
+    border-radius: 14px;
+    font-size: 13px;
+  }
+
+  body.is-gacha-page .nav-tabs {
+    flex: 0 0 auto;
+    margin-bottom: 8px;
+    padding: 6px;
+    gap: 6px;
+    border-radius: 18px;
+  }
+
+  body.is-gacha-page .nav-btn {
+    padding: 9px 8px;
+    font-size: 13px;
+    border-radius: 13px;
+  }
+
+  body.is-gacha-page #gachaPage.page.active {
+    flex: 1;
+    min-height: 0;
+    display: block;
+  }
+
+  body.is-gacha-page #collectionPage.page.active {
+    flex: 1;
+    min-height: 0;
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  body.is-gacha-page #collectionPage .card {
+    min-height: 100%;
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  body.is-gacha-page #gachaPage .card {
+    height: 100%;
+    min-height: 0;
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-layout {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body.is-gacha-page #gachaPage .machine-box {
+    height: 100%;
+    min-height: 0;
+    padding: 10px 12px 12px;
+    border-radius: 22px;
+    justify-content: center;
+  }
+
+  body.is-gacha-page #gachaPage .machine-stage {
+    width: 220px;
+    height: 282px;
+    flex: 0 0 auto;
+  }
+
+  body.is-gacha-page #gachaPage .machine-body {
+    border-radius: 30px 30px 24px 24px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-top {
+    width: 146px;
+    height: 146px;
+    top: 14px;
+    border-width: 8px;
+  }
+
+  body.is-gacha-page #gachaPage .capsule-dots {
+    padding: 28px;
+    gap: 7px;
+  }
+
+  body.is-gacha-page #gachaPage .dot {
+    width: 22px;
+    height: 22px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-slot {
+    bottom: 72px;
+    width: 94px;
+    height: 14px;
+  }
+
+  body.is-gacha-page #gachaPage .machine-tray {
+    bottom: 20px;
+    width: 126px;
+    height: 50px;
+    border-width: 4px;
+    border-radius: 18px;
+  }
+
+  body.is-gacha-page #gachaPage .handle-wrap {
+    top: 120px;
+    right: -8px;
+    width: 76px;
+    height: 76px;
+  }
+
+  body.is-gacha-page #gachaPage .handle-rod {
+    right: 28px;
+    top: 32px;
+    width: 40px;
+    height: 9px;
+  }
+
+  body.is-gacha-page #gachaPage .handle-knob {
+    width: 38px;
+    height: 38px;
+    top: 14px;
+  }
+
+  body.is-gacha-page #gachaPage .shine {
+    inset: auto 30px 62px 30px;
+    height: 78px;
+  }
+
+  body.is-gacha-page .gacha-actions {
+    width: min(340px, 100%);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  body.is-gacha-page .gacha-actions .spin-btn {
+    width: 100%;
+    padding: 13px 8px;
+    font-size: 14px;
+    border-radius: 16px;
+  }
+}
+    
+
+    /* =========================
+       交換pt・交換UI（追加分）
+    ========================= */
+    .EX { background: #fce7f3; color: #9d174d; }
+    .series-summary {
+      margin-bottom: 16px;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.94);
+      border: 1px solid rgba(226,232,240,0.95);
+      box-shadow: var(--shadow-soft);
+    }
+    .series-summary__top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-weight: 800;
+    }
+    .series-summary__missing {
+      margin-top: 10px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .series-block + .series-block { margin-top: 24px; }
+    .series-block__title { font-size: 18px; font-weight: 800; margin: 0 0 10px; }
+    .exchange-actions {
+      min-width: 122px;
+      display: grid;
+      justify-items: end;
+      gap: 6px;
+      text-align: right;
+    }
+    .exchange-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 9px 11px;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .exchange-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .exchange-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+    /* 未獲得・EXカードは、説明と交換操作を下段へ分けて読みやすくする */
+    .item--exchange {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      align-items: center;
+    }
+    .item--exchange .item-main { min-width: 0; }
+    .item--exchange .exchange-actions {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+      margin-top: 2px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: center;
+      justify-items: stretch;
+      gap: 6px;
+      text-align: center;
+    }
+    .item--exchange .exchange-btn {
+      width: 100%;
+      min-height: 38px;
+    }
+    .item--exchange .exchange-note {
+      width: 100%;
+      text-align: center;
+      white-space: normal;
+    }
+    .exchange-btn.is-processing {
+      cursor: wait;
+      opacity: 0.72;
+    }
+    .exchange-note.is-processing {
+      color: #9a3412;
+      font-weight: 800;
+    }
+    .item-text--exchange {
+      margin-top: 7px;
+      padding: 7px 9px;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.55;
+      word-break: normal;
+      overflow-wrap: break-word;
+    }
+    .item--ex {
+      border-color: rgba(244,114,182,0.28);
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(253,242,248,0.94));
+    }
+    .ex-status {
+      margin-top: 7px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(244,114,182,0.18);
+      display: grid;
+      gap: 3px;
+    }
+    .ex-status__title {
+      color: #9d174d;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+    .ex-status__sub {
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .ex-status--unlocked {
+      background: rgba(255,247,237,0.92);
+      border-color: rgba(251,146,60,0.24);
+    }
+    .ex-status--unlocked .ex-status__title { color: #9a3412; }
+    .result-status {
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,247,237,0.95);
+      color: #9a3412;
+      font-size: 13px;
+      line-height: 1.65;
+      font-weight: 700;
+    }
+    .result-tile-status {
+      position: absolute;
+      left: 5px;
+      right: 5px;
+      bottom: 5px;
+      padding: 4px 5px;
+      border-radius: 9px;
+      background: rgba(15,23,42,0.78);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      text-align: center;
+      backdrop-filter: blur(3px);
+    }
+    .multi-exchange-total {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,247,237,0.96);
+      color: #9a3412;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.6;
+    }
+    @media (max-width: 640px) {
+      .item { gap: 10px; }
+      .item--exchange {
+        grid-template-columns: 72px minmax(0, 1fr);
+        align-items: start;
+      }
+      .item--exchange .thumb {
+        width: 72px;
+        height: 72px;
+        border-radius: 17px;
+      }
+      .item--exchange .exchange-actions {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .item--exchange .exchange-note {
+        text-align: center;
+        white-space: normal;
+      }
+      .exchange-btn { padding: 9px 10px; font-size: 12px; }
+      .item-text--exchange,
+      .ex-status__title,
+      .ex-status__sub {
+        word-break: normal;
+        overflow-wrap: break-word;
+      }
+    }
+
+
+    /* =========================
+       交換確認ポップアップ
+       ブラウザ標準confirm/alertを使わず、サイト名表示を出さない
+    ========================= */
+    /* =========================
+       コレクション画像拡大表示
+    ========================= */
+    .collection-image-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10020;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .collection-image-modal.is-open { display: flex; }
+    .collection-image-modal__scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,23,42,0.72);
+      backdrop-filter: blur(6px);
+    }
+    .collection-image-modal__panel {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 94vw);
+      max-height: 90vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      border-radius: 26px;
+      background: rgba(255,255,255,0.98);
+      box-shadow: 0 28px 70px rgba(15,23,42,0.34);
+    }
+    .collection-image-modal__image {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      max-height: calc(90vh - 36px);
+      object-fit: contain;
+      border-radius: 20px;
+      background: #fff;
+    }
+    .collection-image-modal__close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.82);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .exchange-dialog {
+      position: fixed;
+      inset: 0;
+      z-index: 10020;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .exchange-dialog.is-open { display: flex; }
+    .exchange-dialog__scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,23,42,0.52);
+      backdrop-filter: blur(6px);
+    }
+    .exchange-dialog__panel {
+      position: relative;
+      z-index: 1;
+      width: min(360px, 100%);
+      border-radius: 24px;
+      padding: 22px 20px 18px;
+      background: linear-gradient(180deg, #fffaf4 0%, #ffffff 100%);
+      border: 1px solid rgba(255,255,255,0.92);
+      box-shadow: 0 24px 60px rgba(15,23,42,0.22);
+      text-align: center;
+    }
+    .exchange-dialog__title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #7c2d12;
+    }
+    .exchange-dialog__message {
+      margin-top: 12px;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+    .exchange-dialog__actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .exchange-dialog__actions.is-single {
+      grid-template-columns: 1fr;
+    }
+    .exchange-dialog__btn {
+      min-height: 42px;
+      border: none;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .exchange-dialog__btn--cancel {
+      color: #475569;
+      background: #e2e8f0;
+    }
+    .exchange-dialog__btn--confirm {
+      color: #fff;
+      background: linear-gradient(135deg, #111827 0%, #334155 100%);
+    }
+
+  </style>
+</head>
+<body class="is-gacha-page">
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>語り場ガチャ</h1>
+      </div>
+      <div class="status-row">
+        <div class="point-box">保有pt：<span id="newsPoints">--pt</span></div>
+      </div>
+      <button id="backToNewsBtn" class="back-news-btn" type="button">ニュースサイトへ戻る</button>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-btn active" data-page="gachaPage">ガチャ</button>
+      <button class="nav-btn" data-page="collectionPage">コレクション</button>
+    </div>
+
+    <div class="nav-tabs" aria-label="ガチャの弾を選択">
+      <button class="nav-btn series-choice active" data-series="S1" type="button" aria-pressed="true">第1弾</button>
+      <button class="nav-btn series-choice" data-series="S2" type="button" aria-pressed="false">第2弾</button>
+    </div>
+    <p id="seriesNotice" class="exchange-note" role="status"></p>
+    <div id="gachaPage" class="page active">
+      <div class="card">
+        <div class="machine-layout">
+          <div class="machine-box">
+            <div class="machine-stage">
+              <div class="machine-body"></div>
+              <div id="machineTop" class="machine-top">
+                <div class="capsule-dots">
+                  <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                  <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                  <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+              </div>
+              <div class="shine"></div>
+              <div class="machine-slot"></div>
+              <div class="machine-tray"></div>
+              <div id="handleWrap" class="handle-wrap">
+                <div class="handle-rod"></div>
+                <div class="handle-knob"></div>
+              </div>
+            </div>
+            <div class="gacha-actions">
+  <button id="spinBtn" class="spin-btn">1回引く</button>
+  <button id="multiSpinBtn" class="spin-btn" type="button">10連で引く</button>
+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="resultModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(15,23,42,0.52); backdrop-filter: blur(6px); padding:16px; align-items:center; justify-content:center;">
+      <div style="width:min(420px, 100%); max-height:90vh; overflow:auto; background:linear-gradient(180deg, rgba(248,250,252,0.98), rgba(255,255,255,0.98)); border:1px solid rgba(226,232,240,0.95); border-radius:28px; box-shadow:0 24px 60px rgba(15,23,42,0.22); padding:16px; position:relative;">
+        <button id="closeModalBtn" style="position:absolute; top:12px; right:12px; width:38px; height:38px; border:none; border-radius:999px; background:#e2e8f0; color:#0f172a; font-size:20px; font-weight:700; cursor:pointer;">×</button>
+        <div class="result-title" style="padding-right:42px;">排出結果</div>
+        <div id="resultStage" class="result-stage" style="min-height:330px;">
+          <div class="placeholder">ガチャを回すとここにフィギュアが表示されます</div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-top">
+            <span>コレクション達成率</span>
+            <span id="collectionText">0/0</span>
+          </div>
+          <div class="bar">
+            <div id="progressBar" class="bar-inner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="collectionPage" class="page">
+      <div class="card">
+        <div class="collection-head">
+          <div><div class="section-title" style="margin-bottom: 0;">コレクション図鑑</div></div>
+          <div id="collectionTabs" class="small-tabs">
+            <button class="tab-btn active" data-tab="collection">図鑑</button>
+            <button class="tab-btn" data-tab="rates">レア度 / 排出率</button>
+          </div>
+        </div>
+        <div id="tabContent"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="collectionImageModal" class="collection-image-modal" aria-hidden="true">
+    <div id="collectionImageModalScrim" class="collection-image-modal__scrim"></div>
+    <div class="collection-image-modal__panel" role="dialog" aria-modal="true" aria-label="コレクション画像の拡大表示">
+      <button id="collectionImageModalClose" class="collection-image-modal__close" type="button" aria-label="閉じる">×</button>
+      <img id="collectionImageModalImage" class="collection-image-modal__image" src="" alt="">
+    </div>
+  </div>
+
+  <div id="exchangeDialog" class="exchange-dialog" aria-hidden="true">
+    <div id="exchangeDialogScrim" class="exchange-dialog__scrim"></div>
+    <div class="exchange-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="exchangeDialogTitle">
+      <div id="exchangeDialogTitle" class="exchange-dialog__title">交換確認</div>
+      <div id="exchangeDialogMessage" class="exchange-dialog__message"></div>
+      <div id="exchangeDialogActions" class="exchange-dialog__actions">
+        <button id="exchangeDialogCancel" class="exchange-dialog__btn exchange-dialog__btn--cancel" type="button">キャンセル</button>
+        <button id="exchangeDialogConfirm" class="exchange-dialog__btn exchange-dialog__btn--confirm" type="button">交換する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="backToNewsOverlay" class="back-news-overlay" aria-hidden="true">
+    <div class="back-news-card">
+      <div class="back-news-orbit"><span></span><span></span><span></span></div>
+      <div class="back-news-core"></div>
+      <div class="back-news-title">ニュースサイトへ戻っています...</div>
+      <div class="back-news-sub">語り場ニュースへ移動しています</div>
+    </div>
+  </div>
+
+  <script>
+    const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbzyL-rkQTcM_GijeBRHFZT3vfsv58xkQIZFAI6PPPC8IFQ50OB62DJrriiWjOLMyZAE/exec";
+    const DEFAULT_NEWS_SITE_URL = "https://community-news-pwa.vercel.app/";
+
+    const gachaParams = new URLSearchParams(window.location.search);
+    const gachaTicket = gachaParams.get("ticket");
+    const isAdmin = gachaParams.get("admin") === "1";
+    const returnUrl = gachaParams.get("returnUrl") || "";
+    let latestNewsPoints = null;
+
+    const GACHA_ASSET_VERSION = "4";
+
+    function normalizeLegacyGachaImagePath(image) {
+  const raw = String(image || '').trim();
+  const names = new Set(["おかっち_N.png", "おかっち_よもぎ蒸し.png", "おかっち_ジム.png", "かずま_N.png", "かずま_スピーチ.png", "かずま_内臓整体.png", "かずま_研究.png", "ぐっちょん_N.png", "ぐっちょん_会計.png", "ぐっちょん_本収集.png", "しゅう_MC.png", "しゅう_N.png", "しゅう_乾杯.png", "じんさん_N.png", "じんさん_ボドゲ.png", "じんさん_木工.png", "たかちゃん_N.png", "たかちゃん_オンライン講座.png", "たかちゃん_赤兎馬.png", "だいちさん_N.png", "だいちさん_シェアハウス日常.png", "だいちさん_占い中.png", "だいちゃん_N.png", "だいちゃん_オンライン講座.png", "だいちゃん_ライブ配信.png", "とっとくん_N.png", "とっとくん_デザイナー.png", "とっとくん_ハウスクリーニング.png", "ゆか_あべちゃんメイク.png", "ゆかちゃん_N.png", "ゆかちゃん_占い中.png", "よっしー_LS撮影.png", "よっしー_N.png", "よっしー_書籍出版.png", "ケンさん_N.png", "ケンさん_ベース演奏.png", "ケンさん_講演.png", "東さん_N.png", "東さん_ガンプラ.png", "東さん_編集長.png", "第1弾_EX.png"]);
+  const match = raw.match(/^images\/([^/?#]+)([?#].*)?$/);
+  return match && names.has(match[1]) ? 'images/第1弾/' + match[1] + (match[2] || '') : raw;
+}
+
+    function assetUrl(url) {
+      const raw = normalizeLegacyGachaImagePath(url);
+      if (!raw) return raw;
+      if (/^https?:\/\//i.test(raw)) return raw;
+      const sep = raw.includes("?") ? "&" : "?";
+      return `${raw}${sep}v=${encodeURIComponent(GACHA_ASSET_VERSION)}`;
+    }
+
+    function findPointElement() {
+      return (
+        document.getElementById("newsPoints") ||
+        document.getElementById("gachaPoints") ||
+        document.getElementById("pointCount")
+      );
+    }
+
+    function updateMultiSpinButton(pointsValue) {
+      const btn = document.getElementById("multiSpinBtn");
+      if (!btn) return;
+      const points = Number(pointsValue || 0);
+      const safePoints = Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
+      const drawCount = Math.min(10, safePoints);
+      if (drawCount <= 0) {
+        btn.textContent = "pt不足";
+        btn.disabled = true;
+        return;
+      }
+      btn.textContent = `${drawCount}連で引く`;
+      btn.disabled = spinning || exchangeProcessing || !collectionReady || !getDrawTargetFigures().length;
+    }
+
+    function renderGachaLoadingAnimation(titleText, subText) {
+      const title = titleText || "ガチャ抽選中";
+      const sub = subText || "カプセルを準備しています";
+      resultStage.innerHTML = `
+        <div class="gacha-loading-wrap">
+          <div class="gacha-loading-ring"><span class="gacha-loading-particle"></span><span class="gacha-loading-particle"></span><span class="gacha-loading-particle"></span></div>
+          <div class="gacha-loading-ring ring-2"><span class="gacha-loading-particle"></span><span class="gacha-loading-particle"></span><span class="gacha-loading-particle"></span></div>
+          <div class="gacha-loading-core"><div class="gacha-loading-capsule"><div class="gacha-loading-capsule-top"></div><div class="gacha-loading-capsule-bottom"></div></div></div>
+          <div class="gacha-loading-title">${title}<span class="gacha-loading-dots"><span></span><span></span><span></span></span></div>
+          <div class="gacha-loading-sub">${sub}</div>
+        </div>
+      `;
+    }
+
+    async function callNewsApiFromGacha(action, payload = {}) {
+      const res = await fetch(NEWS_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, ...payload })
+      });
+      const text = await res.text();
+      console.log("GACHA API RESPONSE:", action, text);
+      try {
+        return text ? JSON.parse(text) : {};
+      } catch (err) {
+        console.error("API response parse error:", err, text);
+        return { ok: false, code: "INVALID_RESPONSE", message: "APIの返答を読み取れませんでした。" };
+      }
+    }
+
+    function renderNewsPoints(pointsValue) {
+      const points = Number(pointsValue || 0);
+      const safePoints = Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
+      latestNewsPoints = safePoints;
+      const el = findPointElement();
+      if (!el) {
+        console.warn("pt表示用の要素が見つかりません。id='newsPoints' をHTMLに追加してください。");
+        return;
+      }
+      el.textContent = `${safePoints}pt`;
+      updateMultiSpinButton(safePoints);
+    }
+
+    async function loadNewsPointsForGacha() {
+      if (!gachaTicket) {
+        console.warn("ticket がありません。ニュースサイトから入り直してください。");
+        const el = document.getElementById("newsPoints");
+        if (el) el.textContent = "--pt";
+        updateSeriesControls();
+        return;
+      }
+      const data = await callNewsApiFromGacha("getGachaStatus", { ticket: gachaTicket });
+      if (!data.ok) {
+        console.warn("getGachaStatus failed:", data);
+        const el = document.getElementById("newsPoints");
+        if (el) el.textContent = "--pt";
+        updateSeriesControls();
+        return;
+      }
+      renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+    }
+
+    async function consumePointBeforeGacha() {
+      if (!gachaTicket) {
+        alert("ニュースサイトから入り直してください。");
+        return { ok: false };
+      }
+      const data = await callNewsApiFromGacha("useGachaPoint", { ticket: gachaTicket });
+      if (!data.ok) {
+        console.warn("useGachaPoint failed:", data);
+        if (data.code === "NOT_ENOUGH_POINTS") {
+          renderNewsPoints(data.remainingPoints ?? data.remainingPt ?? data.points ?? 0);
+          alert("ptが不足しています。ニュースサイトでptを貯めてから引いてください。");
+        } else if (data.code === "TICKET_EXPIRED") {
+          alert("接続時間が切れました。ニュースサイトから入り直してください。");
+        } else if (data.code === "INVALID_TICKET") {
+          alert("ガチャチケットが無効です。ニュースサイトから入り直してください。");
+        } else {
+          alert(data.message || "ガチャを引けませんでした。");
+        }
+        return { ok: false };
+      }
+      renderNewsPoints(data.remainingPoints ?? data.remainingPt ?? data.points ?? 0);
+      return { ok: true, ...data };
+    }
+
+    async function consumePointsBeforeMultiGacha(requestedCount) {
+      if (!gachaTicket) {
+        alert("ニュースサイトから入り直してください。");
+        return { ok: false };
+      }
+      const data = await callNewsApiFromGacha("useGachaPoints", { ticket: gachaTicket, count: requestedCount });
+      if (!data.ok) {
+        console.warn("useGachaPoints failed:", data);
+        if (data.code === "NOT_ENOUGH_POINTS") {
+          renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+          alert("ptが不足しています。");
+        } else if (data.code === "TICKET_EXPIRED") {
+          alert("接続時間が切れました。ニュースサイトから入り直してください。");
+        } else if (data.code === "INVALID_TICKET") {
+          alert("ガチャチケットが無効です。ニュースサイトから入り直してください。");
+        } else {
+          alert(data.message || "ガチャを引けませんでした。");
+        }
+        return { ok: false };
+      }
+      renderNewsPoints(data.remainingPoints ?? data.points ?? 0);
+      return { ok: true, ...data };
+    }
+
+    async function refundPointsAfterFailedSave(count) {
+      if (!gachaTicket) return { ok: false };
+      const safeCount = Math.max(1, Math.min(10, Math.floor(Number(count || 1))));
+      const data = await callNewsApiFromGacha("refundGachaPoints", {
+        ticket: gachaTicket,
+        count: safeCount
+      });
+      if (data && data.ok) {
+        renderNewsPoints(data.remainingPoints ?? data.points ?? latestNewsPoints ?? 0);
+      }
+      return data;
+    }
+
+    async function getGachaCollectionFromServer() {
+      if (!gachaTicket) return { ok: false };
+      return await callNewsApiFromGacha("getGachaCollection", { ticket: gachaTicket });
+    }
+    function applyServerCollection(data) {
+      if (!data || !data.ok) return;
+      collectionReady = true;
+      inventory = data.inventory || {};
+      totalSpins = Number(data.totalSpins || 0);
+      exchangePoints = data.exchangePoints || {};
+      seriesStatus = data.seriesStatus || {};
+      if (Array.isArray(data.figures) && data.figures.length) {
+        FIGURES = data.figures.map(normalizeClientFigure).sort((a, b) => a.sortOrder - b.sortOrder);
+      }
+      saveState();
+      renderTab();
+      updateSeriesControls();
+    }
+    function getFigureNo(figure) {
+      return String(figure && figure.displayNo ? figure.displayNo : "?");
+    }
+
+    function buildLocalImportItems() {
+      return FIGURES.map(figure => {
+        const count = Number(inventory[figure.id] || 0);
+        return { id: figure.id, no: getFigureNo(figure), name: figure.name, rarity: figure.rarity, concept: figure.concept, image: figure.image, count };
+      }).filter(item => item.count > 0);
+    }
+
+    async function importLocalInventoryIfNeeded(serverData) {
+      const serverTotal = Number(serverData?.totalSpins || 0);
+      const localTotal = Number(totalSpins || 0);
+      if (serverTotal > 0 || localTotal <= 0) return serverData;
+      const items = buildLocalImportItems();
+      if (!items.length) return serverData;
+      return await callNewsApiFromGacha("importLocalGachaInventory", { ticket: gachaTicket, items });
+    }
+
+    async function loadGachaCollectionFromServer() {
+      const serverData = await getGachaCollectionFromServer();
+      if (!serverData.ok) {
+        console.warn("getGachaCollection failed:", serverData);
+        return;
+      }
+      const finalData = await importLocalInventoryIfNeeded(serverData);
+      if (finalData && finalData.ok) applyServerCollection(finalData);
+    }
+    async function saveGachaResultToServer(figure, requestId) {
+      if (!gachaTicket) return { ok: false };
+      return await callNewsApiFromGacha("saveGachaResult", {
+        ticket: gachaTicket,
+        requestId: requestId || createClientRequestId("draw1"),
+        seriesId: selectedSeriesId,
+        result: { figureId: figure.id }
+      });
+    }
+    async function saveGachaResultsToServer(figures, requestId) {
+      if (!gachaTicket) return { ok: false };
+      return await callNewsApiFromGacha("saveGachaResults", {
+        ticket: gachaTicket,
+        requestId: requestId || createClientRequestId("drawN"),
+        seriesId: selectedSeriesId,
+        results: figures.map(figure => ({ figureId: figure.id }))
+      });
+    }
+    function drawMultipleFigures(count) {
+      const pool = getDrawTargetFigures();
+      const results = [];
+      for (let i = 0; i < count; i++) results.push(weightedDraw(pool));
+      return results;
+    }
+
+    function normalizeClientFigure(figure) {
+      const rarity = String(figure.rarity || "").trim();
+      return {
+        id: Number(figure.id ?? figure.figureId),
+        seriesId: String(figure.seriesId || "S1"),
+        displayNo: String(figure.displayNo || figure.figureNo || "?"),
+        sortOrder: Number(figure.sortOrder || 999999),
+        name: String(figure.name || figure.figureName || ""),
+        rarity,
+        dropRate: Number(figure.dropRate || 0),
+        concept: String(figure.concept || ""),
+        image: String(figure.image || ""),
+        exchangeCost: Number(figure.exchangeCost || ({ N: 10, R: 20, SR: 30, EX: 50 }[rarity] || 0)),
+        isEx: figure.isEx === true || String(figure.isEx).toLowerCase() === "true",
+        isDrawTarget: figure.isDrawTarget === true || String(figure.isDrawTarget).toLowerCase() === "true",
+        isActive: figure.isActive !== false && String(figure.isActive).toLowerCase() !== "false"
+      };
+    }
+
+    function createClientRequestId(prefix) {
+      const suffix = (window.crypto && typeof window.crypto.randomUUID === "function")
+        ? window.crypto.randomUUID()
+        : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      return `${prefix || "req"}_${suffix}`;
+    }
+
+    function getDrawTargetFigures() {
+      return FIGURES.filter(figure => figure.seriesId === selectedSeriesId && Number(figure.dropRate) > 0 && figure.isActive !== false && figure.isDrawTarget === true && figure.isEx !== true);
+    }
+
+    function getNormalSeriesFigures(seriesId) {
+      return FIGURES
+        .filter(figure => figure.isActive !== false && figure.seriesId === seriesId && !figure.isEx)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+
+    function getSeriesExFigure(seriesId) {
+      return FIGURES.find(figure => figure.isActive !== false && figure.seriesId === seriesId && figure.isEx) || null;
+    }
+
+    function getSeriesIds() {
+      return Array.from(new Set(FIGURES.filter(figure => figure.isActive !== false).map(figure => figure.seriesId)))
+        .sort((a, b) => String(a).localeCompare(String(b), "ja", { numeric: true }));
+    }
+
+    function getSeriesLabel(seriesId) {
+      const match = String(seriesId || "").match(/(\d+)/);
+      return match ? `第${Number(match[1])}弾` : String(seriesId || "シリーズ");
+    }
+
+    function getDuplicatePointLabel(drawResult) {
+      const point = Number(drawResult && drawResult.duplicatePoint || 0);
+      return drawResult && drawResult.isNew ? "NEW" : `＋${point}pt`;
+    }
+
+    function openCollectionImageModal(imageElement) {
+      const modal = document.getElementById("collectionImageModal");
+      const modalImage = document.getElementById("collectionImageModalImage");
+      const closeButton = document.getElementById("collectionImageModalClose");
+      if (!modal || !modalImage || !imageElement) return;
+
+      const src = imageElement.currentSrc || imageElement.src || "";
+      if (!src) return;
+
+      modalImage.src = src;
+      modalImage.alt = imageElement.alt || "コレクション画像";
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      if (closeButton) closeButton.focus();
+    }
+
+    function closeCollectionImageModal() {
+      const modal = document.getElementById("collectionImageModal");
+      const modalImage = document.getElementById("collectionImageModalImage");
+      if (!modal) return;
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+      if (modalImage) {
+        modalImage.src = "";
+        modalImage.alt = "";
+      }
+      document.body.style.overflow = "";
+    }
+
+    function bindCollectionImagePreview() {
+      if (!tabContent || tabContent.dataset.imagePreviewBound === "1") return;
+      tabContent.dataset.imagePreviewBound = "1";
+
+      tabContent.addEventListener("click", event => {
+        const image = event.target.closest("img[data-image-preview='1']");
+        if (!image) return;
+        openCollectionImageModal(image);
+      });
+
+      tabContent.addEventListener("keydown", event => {
+        const image = event.target.closest("img[data-image-preview='1']");
+        if (!image || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        openCollectionImageModal(image);
+      });
+    }
+
+    function showExchangeDialog(options = {}) {
+      const modal = document.getElementById("exchangeDialog");
+      const title = document.getElementById("exchangeDialogTitle");
+      const message = document.getElementById("exchangeDialogMessage");
+      const actions = document.getElementById("exchangeDialogActions");
+      const cancelBtn = document.getElementById("exchangeDialogCancel");
+      const confirmBtn = document.getElementById("exchangeDialogConfirm");
+      const scrim = document.getElementById("exchangeDialogScrim");
+
+      if (!modal || !title || !message || !actions || !cancelBtn || !confirmBtn || !scrim) {
+        return Promise.resolve(false);
+      }
+
+      const cancelText = String(options.cancelText || "").trim();
+      title.textContent = options.title || "確認";
+      message.textContent = options.message || "";
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = options.confirmText || "OK";
+      cancelBtn.textContent = cancelText || "キャンセル";
+      cancelBtn.hidden = !cancelText;
+      actions.classList.toggle("is-single", !cancelText);
+
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+
+      return new Promise(resolve => {
+        let settled = false;
+
+        const close = value => {
+          if (settled) return;
+          settled = true;
+          modal.classList.remove("is-open");
+          modal.setAttribute("aria-hidden", "true");
+          document.body.style.overflow = "";
+          confirmBtn.onclick = null;
+          cancelBtn.onclick = null;
+          scrim.onclick = null;
+          resolve(value);
+        };
+
+        confirmBtn.onclick = () => close(true);
+        cancelBtn.onclick = () => close(false);
+        scrim.onclick = () => close(cancelText ? false : true);
+        confirmBtn.focus();
+      });
+    }
+
+    async function exchangeFigureFromCollection(figureId, clickedButton) {
+      if (exchangeProcessing) return;
+      const figure = FIGURES.find(item => String(item.id) === String(figureId));
+      if (!figure) return;
+
+      // 交換確定前は中身が分からないよう、確認表示は番号だけにする。
+      const label = `${getSeriesLabel(figure.seriesId)} ${getFigureNo(figure)}`;
+      let pointAllocation;
+      if (figure.isEx) {
+        pointAllocation = {};
+        let remaining = Number(figure.exchangeCost);
+        const panel = document.createElement('div');
+        const inputs = [];
+        for (const sid of Array.from(new Set(['S1', 'S2', ...Object.keys(exchangePoints)]))) {
+          const balance = Number(exchangePoints[sid] || 0);
+          const row = document.createElement('label');
+          row.style.display = 'block';
+          row.textContent = `${getSeriesLabel(sid)}（残高 ${balance}pt）：`;
+          const input = document.createElement('input');
+          input.type = 'number'; input.min = '0'; input.max = String(balance); input.step = '1';
+          input.value = String(Math.min(balance, remaining)); remaining -= Number(input.value);
+          input.style.width = '80px'; row.append(input); panel.append(row); inputs.push({sid, input, balance});
+        }
+        const note = document.createElement('div'); panel.append(note);
+        const validate = () => {
+          const valid = inputs.every(({input,balance}) => Number.isInteger(Number(input.value)) && Number(input.value) >= 0 && Number(input.value) <= balance);
+          const total = inputs.reduce((sum,{input}) => sum + Number(input.value), 0);
+          note.textContent = `使用合計：${total} / ${figure.exchangeCost}pt`;
+          document.getElementById('exchangeDialogConfirm').disabled = !valid || total !== Number(figure.exchangeCost);
+        };
+        inputs.forEach(({input}) => input.addEventListener('input', validate));
+        const choice = showExchangeDialog({title:'EX交換ptの配分', message:`${label}に使用する交換ptを選択してください。`, confirmText:'内訳を確認', cancelText:'キャンセル'});
+        document.getElementById('exchangeDialogMessage').append(panel); validate();
+        if (!await choice) return;
+        inputs.forEach(({sid,input}) => { pointAllocation[sid] = Number(input.value); });
+      }
+      const allocationText = pointAllocation ? '\n' + Object.entries(pointAllocation).map(([sid,pt]) => `${getSeriesLabel(sid)}：${pt}pt`).join(' / ') : '';
+      const confirmed = await showExchangeDialog({
+        title: "交換確認",
+        message: `${label}を${figure.exchangeCost}交換ptで交換しますか？${allocationText}`,
+        confirmText: "交換する",
+        cancelText: "キャンセル"
+      });
+      if (!confirmed) return;
+
+      exchangeProcessing = true;
+      updateSeriesControls();
+
+      const exchangeActions = clickedButton ? clickedButton.closest(".exchange-actions") : null;
+      const exchangeNote = exchangeActions ? exchangeActions.querySelector(".exchange-note") : null;
+
+      // 通信完了まで交換中であることを明示し、他の交換ボタンも一時的に無効化する。
+      document.querySelectorAll("[data-exchange-figure]").forEach(button => {
+        button.disabled = true;
+      });
+      if (clickedButton) {
+        clickedButton.textContent = "交換中...";
+        clickedButton.classList.add("is-processing");
+      }
+      if (exchangeNote) {
+        exchangeNote.textContent = "交換処理中です";
+        exchangeNote.classList.add("is-processing");
+      }
+
+      try {
+        const data = await callNewsApiFromGacha("exchangeFigure", {
+          ticket: gachaTicket,
+          requestId: createClientRequestId("exchange"),
+          figureId: figure.id,
+          pointAllocation
+        });
+        if (!data.ok) {
+          const messageMap = {
+            NOT_ENOUGH_EXCHANGE_POINTS: "交換ptが不足しています。",
+            ALREADY_OWNED: "すでに所持しています。",
+            SERIES_NOT_COMPLETE: "通常フィギュアをコンプリートするとEX交換が解放されます。"
+          };
+          await showExchangeDialog({
+            title: "交換できませんでした",
+            message: messageMap[data.code] || data.message || "交換に失敗しました。",
+            confirmText: "閉じる"
+          });
+          return;
+        }
+        applyServerCollection(data);
+        await showExchangeDialog({
+          title: "交換完了",
+          message: `${label}を交換しました。`,
+          confirmText: "閉じる"
+        });
+      } catch (err) {
+        console.error("交換処理中のエラー:", err);
+        await showExchangeDialog({
+          title: "交換エラー",
+          message: "交換処理中にエラーが発生しました。",
+          confirmText: "閉じる"
+        });
+      } finally {
+        exchangeProcessing = false;
+        updateSeriesControls();
+        renderTab();
+      }
+    }
+
+    function bindExchangeButtons() {
+      document.querySelectorAll("[data-exchange-figure]").forEach(button => {
+        button.addEventListener("click", () => {
+          exchangeFigureFromCollection(button.dataset.exchangeFigure, button);
+        });
+      });
+    }
+
+    let FIGURES = [
+      { id: 1, seriesId: 'S1', displayNo: 'No.1', sortOrder: 100, name: '東さん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/東さん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 2, seriesId: 'S1', displayNo: 'No.2', sortOrder: 200, name: 'よっしー', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/よっしー_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 3, seriesId: 'S1', displayNo: 'No.3', sortOrder: 300, name: 'じんさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/じんさん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 4, seriesId: 'S1', displayNo: 'No.4', sortOrder: 400, name: '海賊けん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/ケンさん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 5, seriesId: 'S1', displayNo: 'No.5', sortOrder: 500, name: 'しゅうへい', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/しゅう_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 6, seriesId: 'S1', displayNo: 'No.6', sortOrder: 600, name: 'とっとくん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/とっとくん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 7, seriesId: 'S1', displayNo: 'No.7', sortOrder: 700, name: 'かずま', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/かずま_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 8, seriesId: 'S1', displayNo: 'No.8', sortOrder: 800, name: 'たかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/たかちゃん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 9, seriesId: 'S1', displayNo: 'No.9', sortOrder: 900, name: 'だいちさん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/だいちさん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 10, seriesId: 'S1', displayNo: 'No.10', sortOrder: 1000, name: 'ゆかちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/ゆかちゃん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 11, seriesId: 'S1', displayNo: 'No.11', sortOrder: 1100, name: 'おかっち', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/おかっち_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 12, seriesId: 'S1', displayNo: 'No.12', sortOrder: 1200, name: 'だいちゃん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/だいちゃん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 13, seriesId: 'S1', displayNo: 'No.13', sortOrder: 1300, name: 'ぐっちょん', rarity: 'N', dropRate: 40, concept: '語り場共同オーナー', image: 'images/第1弾/ぐっちょん_N.png', exchangeCost: 10, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 14, seriesId: 'S1', displayNo: 'No.14', sortOrder: 1400, name: '東さん', rarity: 'R', dropRate: 18, concept: 'ガンプラ製作中', image: 'images/第1弾/東さん_ガンプラ.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 15, seriesId: 'S1', displayNo: 'No.15', sortOrder: 1500, name: 'よっしー', rarity: 'R', dropRate: 18, concept: 'LIFE STORY撮影', image: 'images/第1弾/よっしー_LS撮影.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 16, seriesId: 'S1', displayNo: 'No.16', sortOrder: 1600, name: 'じんさん', rarity: 'R', dropRate: 18, concept: 'ボードゲーム', image: 'images/第1弾/じんさん_ボドゲ.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 17, seriesId: 'S1', displayNo: 'No.17', sortOrder: 1700, name: '海賊けん', rarity: 'R', dropRate: 18, concept: '講演', image: 'images/第1弾/ケンさん_講演.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 18, seriesId: 'S1', displayNo: 'No.18', sortOrder: 1800, name: 'しゅうへい', rarity: 'R', dropRate: 18, concept: '乾杯', image: 'images/第1弾/しゅう_乾杯.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 19, seriesId: 'S1', displayNo: 'No.19', sortOrder: 1900, name: 'とっとくん', rarity: 'R', dropRate: 18, concept: 'ハウスクリーニング', image: 'images/第1弾/とっとくん_ハウスクリーニング.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 20, seriesId: 'S1', displayNo: 'No.20', sortOrder: 2000, name: 'かずま', rarity: 'R', dropRate: 18, concept: '内臓整体', image: 'images/第1弾/かずま_内臓整体.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 32, seriesId: 'S1', displayNo: 'No.21', sortOrder: 2100, name: 'たかちゃん', rarity: 'R', dropRate: 18, concept: '焼酎呑み', image: 'images/第1弾/たかちゃん_赤兎馬.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 21, seriesId: 'S1', displayNo: 'No.22', sortOrder: 2200, name: 'だいちさん', rarity: 'R', dropRate: 18, concept: '算命学', image: 'images/第1弾/だいちさん_占い中.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 22, seriesId: 'S1', displayNo: 'No.23', sortOrder: 2300, name: 'ゆかちゃん', rarity: 'R', dropRate: 18, concept: '西洋占星術', image: 'images/第1弾/ゆかちゃん_占い中.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 23, seriesId: 'S1', displayNo: 'No.24', sortOrder: 2400, name: 'おかっち', rarity: 'R', dropRate: 18, concept: 'よもぎ蒸し', image: 'images/第1弾/おかっち_よもぎ蒸し.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 37, seriesId: 'S1', displayNo: 'No.25', sortOrder: 2500, name: 'だいちゃん', rarity: 'R', dropRate: 18, concept: 'オンライン講座', image: 'images/第1弾/だいちゃん_オンライン講座.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 24, seriesId: 'S1', displayNo: 'No.26', sortOrder: 2600, name: 'ぐっちょん', rarity: 'R', dropRate: 18, concept: 'お仕事中', image: 'images/第1弾/ぐっちょん_会計.png', exchangeCost: 20, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 25, seriesId: 'S1', displayNo: 'No.27', sortOrder: 2700, name: '東さん', rarity: 'SR', dropRate: 10, concept: '編集長', image: 'images/第1弾/東さん_編集長.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 26, seriesId: 'S1', displayNo: 'No.28', sortOrder: 2800, name: 'よっしー', rarity: 'SR', dropRate: 10, concept: '書籍出版', image: 'images/第1弾/よっしー_書籍出版.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 27, seriesId: 'S1', displayNo: 'No.29', sortOrder: 2900, name: 'じんさん', rarity: 'SR', dropRate: 10, concept: '木工職人', image: 'images/第1弾/じんさん_木工.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 28, seriesId: 'S1', displayNo: 'No.30', sortOrder: 3000, name: '海賊けん', rarity: 'SR', dropRate: 10, concept: 'ベース演奏', image: 'images/第1弾/ケンさん_ベース演奏.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 29, seriesId: 'S1', displayNo: 'No.31', sortOrder: 3100, name: 'しゅうへい', rarity: 'SR', dropRate: 10, concept: 'LIFE ARTS LIVE', image: 'images/第1弾/しゅう_MC.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 30, seriesId: 'S1', displayNo: 'No.32', sortOrder: 3200, name: 'とっとくん', rarity: 'SR', dropRate: 10, concept: 'デザイナー', image: 'images/第1弾/とっとくん_デザイナー.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 33, seriesId: 'S1', displayNo: 'No.33', sortOrder: 3300, name: 'たかちゃん', rarity: 'SR', dropRate: 10, concept: 'オンライン講座', image: 'images/第1弾/たかちゃん_オンライン講座.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 38, seriesId: 'S1', displayNo: 'No.34', sortOrder: 3400, name: 'だいちさん', rarity: 'SR', dropRate: 10, concept: 'シェアハウスの日常', image: 'images/第1弾/だいちさん_シェアハウス日常.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 34, seriesId: 'S1', displayNo: 'No.35', sortOrder: 3500, name: 'ゆかちゃん', rarity: 'SR', dropRate: 10, concept: 'あべちゃんメイク', image: 'images/第1弾/ゆか_あべちゃんメイク.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 35, seriesId: 'S1', displayNo: 'No.36', sortOrder: 3600, name: 'おかっち', rarity: 'SR', dropRate: 10, concept: 'パンプアップ', image: 'images/第1弾/おかっち_ジム.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 39, seriesId: 'S1', displayNo: 'No.37', sortOrder: 3700, name: 'だいちゃん', rarity: 'SR', dropRate: 10, concept: 'ライブ配信', image: 'images/第1弾/だいちゃん_ライブ配信.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 36, seriesId: 'S1', displayNo: 'No.38', sortOrder: 3800, name: 'ぐっちょん', rarity: 'SR', dropRate: 10, concept: '本収集', image: 'images/第1弾/ぐっちょん_本収集.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 31, seriesId: 'S1', displayNo: 'No.39', sortOrder: 3900, name: 'かずま', rarity: 'SR', dropRate: 10, concept: '研究', image: 'images/第1弾/かずま_研究.png', exchangeCost: 30, isEx: false, isDrawTarget: true, isActive: true },
+      { id: 40, seriesId: 'S1', displayNo: 'EX-01', sortOrder: 9999, name: '語り場 共同オーナー', rarity: 'EX', dropRate: 0, concept: 'ポイント交換限定', image: 'images/第1弾/第1弾_EX.png', exchangeCost: 50, isEx: true, isDrawTarget: false, isActive: true },
+      {"seriesId": "S2", "displayNo": "No.1", "sortOrder": 100, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_おかっち_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 201, "name": "おかっち"},
+      {"seriesId": "S2", "displayNo": "No.2", "sortOrder": 200, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_かずま_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 202, "name": "かずま"},
+      {"seriesId": "S2", "displayNo": "No.3", "sortOrder": 300, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_ぐっちょん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 203, "name": "ぐっちょん"},
+      {"seriesId": "S2", "displayNo": "No.4", "sortOrder": 400, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_けんさん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 204, "name": "けんさん"},
+      {"seriesId": "S2", "displayNo": "No.5", "sortOrder": 500, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_しゅう_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 205, "name": "しゅう"},
+      {"seriesId": "S2", "displayNo": "No.6", "sortOrder": 600, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_じんさん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 206, "name": "じんさん"},
+      {"seriesId": "S2", "displayNo": "No.7", "sortOrder": 700, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_たかちゃん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 207, "name": "たかちゃん"},
+      {"seriesId": "S2", "displayNo": "No.8", "sortOrder": 800, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_だいちさん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 208, "name": "だいちさん"},
+      {"seriesId": "S2", "displayNo": "No.9", "sortOrder": 900, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_だいちゃん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 209, "name": "だいちゃん"},
+      {"seriesId": "S2", "displayNo": "No.10", "sortOrder": 1000, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_とっとくん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 210, "name": "とっとくん"},
+      {"seriesId": "S2", "displayNo": "No.11", "sortOrder": 1100, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_ゆかちゃん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 211, "name": "ゆかちゃん"},
+      {"seriesId": "S2", "displayNo": "No.12", "sortOrder": 1200, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_よっしー_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 212, "name": "よっしー"},
+      {"seriesId": "S2", "displayNo": "No.13", "sortOrder": 1300, "rarity": "N", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_東さん_N.png", "dropRate": 40, "exchangeCost": 10, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 213, "name": "東さん"},
+      {"seriesId": "S2", "displayNo": "No.14", "sortOrder": 1400, "rarity": "R", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_おかっち&ぐっちょん_R.png", "dropRate": 18, "exchangeCost": 20, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 214, "name": "おかっち&ぐっちょん"},
+      {"seriesId": "S2", "displayNo": "No.15", "sortOrder": 1500, "rarity": "R", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_かずま&ゆかちゃん_R.png", "dropRate": 18, "exchangeCost": 20, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 215, "name": "かずま&ゆかちゃん"},
+      {"seriesId": "S2", "displayNo": "No.16", "sortOrder": 1600, "rarity": "R", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_じんさん&だいちゃん&東さん_R.png", "dropRate": 18, "exchangeCost": 20, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 216, "name": "じんさん&だいちゃん&東さん"},
+      {"seriesId": "S2", "displayNo": "No.17", "sortOrder": 1700, "rarity": "R", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_たかちゃん&とっとくん_R.png", "dropRate": 18, "exchangeCost": 20, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 217, "name": "たかちゃん&とっとくん"},
+      {"seriesId": "S2", "displayNo": "No.18", "sortOrder": 1800, "rarity": "R", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_だいちさん&しゅう_R.png", "dropRate": 18, "exchangeCost": 20, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 218, "name": "だいちさん&しゅう"},
+      {"seriesId": "S2", "displayNo": "No.19", "sortOrder": 1900, "rarity": "R", "concept": "まちぼうけ", "image": "images/第2弾/まちぼうけ_よっしー&けんさん_R.png", "dropRate": 18, "exchangeCost": 20, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 219, "name": "よっしー&けんさん"},
+      {"seriesId": "S2", "displayNo": "No.20", "sortOrder": 2000, "rarity": "SR", "concept": "みんなどこにいたの？", "image": "images/第2弾/みんなどこにいたの？_チーム3_SR.png", "dropRate": 10, "exchangeCost": 30, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 220, "name": "チーム3"},
+      {"seriesId": "S2", "displayNo": "No.21", "sortOrder": 2100, "rarity": "SR", "concept": "余裕をもって", "image": "images/第2弾/余裕をもって_チーム2_SR.png", "dropRate": 10, "exchangeCost": 30, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 221, "name": "チーム2"},
+      {"seriesId": "S2", "displayNo": "No.22", "sortOrder": 2200, "rarity": "SR", "concept": "優勝打ち上げへ", "image": "images/第2弾/優勝打ち上げへ_チーム1_SR.png", "dropRate": 10, "exchangeCost": 30, "isEx": false, "isDrawTarget": true, "isActive": true, "id": 222, "name": "チーム1"}
+    ];
+
+    const STORAGE_KEY = 'katariba_gacha_inventory_v2';
+    const STORAGE_SPIN_KEY = 'katariba_gacha_spin_count_v2';
+
+    let inventory = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    let totalSpins = Number(localStorage.getItem(STORAGE_SPIN_KEY) || 0);
+    let selectedSeriesId = 'S1';
+    let collectionReady = false;
+    let activeTab = 'collection';
+    let spinning = false;
+    let exchangePoints = {};
+    let seriesStatus = {};
+    let exchangeProcessing = false;
+
+    const spinBtn = document.getElementById('spinBtn');
+    const machineTop = document.getElementById('machineTop');
+    const handleWrap = document.getElementById('handleWrap');
+    const resultModal = document.getElementById('resultModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const resultStage = document.getElementById('resultStage');
+    const tabContent = document.getElementById('tabContent');
+    const spinCount = document.getElementById('spinCount');
+    const collectionText = document.getElementById('collectionText');
+    const progressBar = document.getElementById('progressBar');
+    const collectionTabs = document.getElementById('collectionTabs');
+    const multiSpinBtn = document.getElementById('multiSpinBtn');
+    const backToNewsBtn = document.getElementById('backToNewsBtn');
+
+    if (isAdmin && collectionTabs) collectionTabs.style.display = 'inline-grid';
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+      localStorage.setItem(STORAGE_SPIN_KEY, String(totalSpins));
+    }
+
+    function updateSeriesControls() {
+      const available = collectionReady && getDrawTargetFigures().length > 0;
+      document.querySelectorAll('[data-series]').forEach(button => {
+        const active = button.dataset.series === selectedSeriesId;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+        button.disabled = spinning || exchangeProcessing;
+      });
+      document.getElementById('seriesNotice').textContent = !collectionReady ? 'コレクションを読み込み中です' : available ? `${getSeriesLabel(selectedSeriesId)}を選択中・1回1pt` : `${getSeriesLabel(selectedSeriesId)}は準備中です`;
+      updateMultiSpinButton(latestNewsPoints || 0);
+      spinBtn.disabled = !available || spinning || exchangeProcessing;
+      multiSpinBtn.disabled = multiSpinBtn.disabled || !available || spinning || exchangeProcessing;
+    }
+    document.querySelectorAll('[data-series]').forEach(button => button.addEventListener('click', () => {
+      if (spinning || exchangeProcessing) return;
+      selectedSeriesId = button.dataset.series;
+      renderTab(); updateSeriesControls();
+    }));
+
+    function weightedDraw(pool) {
+      const total = pool.reduce((sum, item) => sum + item.dropRate, 0);
+      const rand = Math.random() * total;
+      let cumulative = 0;
+      for (const item of pool) {
+        cumulative += item.dropRate;
+        if (rand <= cumulative) return item;
+      }
+      return pool[pool.length - 1];
+    }
+    function getOwnedCount() {
+      return getDrawTargetFigures().filter(f => Number(inventory[f.id] || 0) > 0).length;
+    }
+    function updateProgress() {
+      const normalFigures = getDrawTargetFigures();
+      const owned = normalFigures.filter(f => Number(inventory[f.id] || 0) > 0).length;
+      const total = normalFigures.length;
+      const rate = total === 0 ? 0 : Math.round((owned / total) * 100);
+      collectionText.textContent = `${owned}/${total}`;
+      progressBar.style.width = `${rate}%`;
+      if (spinCount) spinCount.textContent = totalSpins;
+    }
+    function renderCollectionTab() {
+      const seriesHtml = [selectedSeriesId].map(seriesId => {
+        const seriesLabel = getSeriesLabel(seriesId);
+        const normalFigures = getNormalSeriesFigures(seriesId);
+        const exFigure = getSeriesExFigure(seriesId);
+        const balance = Number(exchangePoints[seriesId] || 0);
+        const serverStatus = seriesStatus[seriesId] || {};
+        const ownedNormal = Number(serverStatus.ownedNormal ?? normalFigures.filter(f => Number(inventory[f.id] || 0) > 0).length);
+        const totalNormal = Number(serverStatus.totalNormal ?? normalFigures.length);
+        const isComplete = serverStatus.isComplete === true || (totalNormal > 0 && ownedNormal >= totalNormal);
+        const missingByRarity = serverStatus.missingByRarity || normalFigures.reduce((acc, f) => {
+          if (Number(inventory[f.id] || 0) <= 0) acc[f.rarity] = Number(acc[f.rarity] || 0) + 1;
+          return acc;
+        }, { N: 0, R: 0, SR: 0 });
+
+        const summary = `
+          <div class="series-summary">
+            <div class="series-summary__top">
+              <span>${seriesLabel}コレクション　${ownedNormal} / ${totalNormal}</span>
+              <span>${seriesLabel}交換pt　${balance}pt</span>
+            </div>
+            <div class="series-summary__missing">
+              <span>未所持</span>
+              <span>N：${Number(missingByRarity.N || 0)}体</span>
+              <span>R：${Number(missingByRarity.R || 0)}体</span>
+              <span>SR：${Number(missingByRarity.SR || 0)}体</span>
+            </div>
+          </div>`;
+
+        const normalHtml = normalFigures.map(figure => {
+          const count = Number(inventory[figure.id] || 0);
+          const owned = count > 0;
+          const imgClass = owned ? 'thumb thumb--preview' : 'thumb locked';
+          const imgSrc = owned ? assetUrl(figure.image) : 'https://placehold.co/120x120?text=LOCK';
+          const previewAttrs = owned ? 'data-image-preview="1" role="button" tabindex="0"' : '';
+          const name = owned ? figure.name : '未獲得';
+          const text = owned ? figure.concept : 'ガチャ・交換で入手';
+          const shortage = Math.max(0, Number(figure.exchangeCost || 0) - balance);
+          const actionHtml = owned
+            ? `<div class="item-count">x${count}</div>`
+            : `<div class="exchange-actions">
+                <button class="exchange-btn" type="button" data-exchange-figure="${figure.id}" ${balance < figure.exchangeCost || exchangeProcessing ? 'disabled' : ''}>${figure.exchangeCost}ptで交換</button>
+                <div class="exchange-note">${shortage > 0 ? `あと${shortage}pt必要` : '交換できます'}</div>
+              </div>`;
+          return `
+            <div class="item${owned ? '' : ' item--exchange'}">
+              <img class="${imgClass}" src="${imgSrc}" alt="${name}" ${previewAttrs} onerror="this.src='https://placehold.co/120x120?text=?'">
+              <div class="item-main">
+                <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
+                <div class="item-name">${name}</div>
+                <div class="item-text${owned ? '' : ' item-text--exchange'}">${text}</div>
+              </div>
+              ${actionHtml}
+            </div>`;
+        }).join('');
+
+        let exHtml = '';
+        if (exFigure) {
+          const exOwned = Number(inventory[exFigure.id] || 0) > 0;
+          const exBalance = Object.values(exchangePoints).reduce((sum, value) => sum + Number(value || 0), 0);
+          const shortage = Math.max(0, Number(exFigure.exchangeCost || 50) - exBalance);
+          const unlocked = isComplete;
+          const exStatusHtml = exOwned
+            ? `<div class="ex-status"><div class="ex-status__title">交換済み</div><div class="ex-status__sub">${exFigure.concept}</div></div>`
+            : unlocked
+              ? `<div class="ex-status ex-status--unlocked"><div class="ex-status__title">EX交換が解放されました</div><div class="ex-status__sub">全弾合計交換pt：${exBalance} / ${exFigure.exchangeCost}pt</div></div>`
+              : `<div class="ex-status"><div class="ex-status__title">${seriesLabel}コンプリートで解放</div><div class="ex-status__sub">必要交換pt：${exFigure.exchangeCost}pt</div></div>`;
+          const exAction = exOwned
+            ? `<div class="item-count">x1</div>`
+            : `<div class="exchange-actions">
+                <button class="exchange-btn" type="button" data-exchange-figure="${exFigure.id}" ${!unlocked || exBalance < exFigure.exchangeCost || exchangeProcessing ? 'disabled' : ''}>${unlocked ? `${exFigure.exchangeCost}ptでEX交換` : '未解放'}</button>
+                <div class="exchange-note">${unlocked ? (shortage > 0 ? `あと${shortage}pt必要` : '交換できます') : '通常フィギュアをすべて集めると解放'}</div>
+              </div>`;
+          exHtml = `
+            <div class="item item--ex${exOwned ? '' : ' item--exchange'}">
+              <img class="${exOwned ? 'thumb thumb--preview' : 'thumb locked'}" src="${exOwned ? assetUrl(exFigure.image) : 'https://placehold.co/120x120?text=EX'}" alt="${exOwned ? exFigure.name : 'EX'}" ${exOwned ? 'data-image-preview="1" role="button" tabindex="0"' : ''} onerror="this.src='https://placehold.co/120x120?text=EX'">
+              <div class="item-main">
+                <div class="item-row"><div><strong>${getFigureNo(exFigure)}</strong></div><span class="badge EX" style="margin-top:0;">EX</span></div>
+                <div class="item-name">${exOwned ? exFigure.name : `${seriesLabel}EX`}</div>
+                ${exStatusHtml}
+              </div>
+              ${exAction}
+            </div>`;
+        }
+
+        return `<section class="series-block"><div class="series-block__title">${seriesLabel}</div>${summary}<div class="list">${normalHtml}${exHtml}</div></section>`;
+      }).join('');
+
+      tabContent.innerHTML = seriesHtml || '<div class="placeholder">コレクション情報がありません</div>';
+      bindExchangeButtons();
+    }
+    function renderRatesTab() {
+      const html = getDrawTargetFigures().sort((a, b) => a.sortOrder - b.sortOrder).map(figure => `
+        <div class="item">
+          <img class="thumb thumb--preview" src="${assetUrl(figure.image)}" alt="${figure.name}" data-image-preview="1" role="button" tabindex="0" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(getFigureNo(figure))}'">
+          <div class="item-main">
+            <div class="item-row"><div><strong>${getFigureNo(figure)}</strong></div><span class="badge ${figure.rarity}" style="margin-top:0;">${figure.rarity}</span></div>
+            <div class="item-name">${figure.name}</div>
+            <div class="item-text">${figure.concept}</div>
+          </div>
+          <div class="item-count">${figure.dropRate}%</div>
+        </div>
+      `).join('');
+      tabContent.innerHTML = `<div class="list">${html}</div>`;
+    }
+
+    function renderTab() {
+      if (!isAdmin && activeTab === 'rates') activeTab = 'collection';
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === activeTab));
+      if (isAdmin && activeTab === 'rates') renderRatesTab();
+      else renderCollectionTab();
+      bindCollectionImagePreview();
+      updateProgress();
+    }
+    function renderResult(figure, drawResult) {
+      const figureNo = getFigureNo(figure);
+      const seriesId = String(drawResult && drawResult.seriesId || figure.seriesId || "S1");
+      const currentSeriesPoint = Number(exchangePoints[seriesId] || 0);
+      const statusHtml = drawResult && drawResult.isNew
+        ? `<div class="result-status"><strong>NEW</strong><br>交換ptの付与はありません</div>`
+        : `<div class="result-status"><strong>所持済み</strong><br>${figure.rarity}重複ボーナス ＋${Number(drawResult && drawResult.duplicatePoint || 0)}交換pt<br>${getSeriesLabel(seriesId)}交換pt：${currentSeriesPoint}pt</div>`;
+      resultStage.innerHTML = `
+        <div class="figure-card figure-card--single">
+          <img src="${assetUrl(figure.image)}" alt="${figure.name}" onerror="this.src='https://placehold.co/400x400?text=${encodeURIComponent(figureNo)}'">
+          <div class="badge ${figure.rarity}">${figure.rarity}</div>
+          <div class="figure-name">${figureNo} ${figure.name}</div>
+          ${statusHtml}
+        </div>
+      `;
+      resultModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+    function renderMultiResult(results, drawResults) {
+      const metaList = Array.isArray(drawResults) ? drawResults : [];
+      const totals = {};
+      const html = results.map((figure, index) => {
+        const figureNo = getFigureNo(figure);
+        const meta = metaList.find(item => Number(item.resultIndex) === index) || metaList[index] || {};
+        const seriesId = String(meta.seriesId || figure.seriesId || "S1");
+        const point = Number(meta.duplicatePoint || 0);
+        if (point > 0) totals[seriesId] = Number(totals[seriesId] || 0) + point;
+        return `
+          <div class="result-tile" title="${figureNo} ${figure.name}">
+            <img src="${assetUrl(figure.image)}" alt="${figureNo} ${figure.name}" onerror="this.src='https://placehold.co/120x120?text=${encodeURIComponent(figureNo)}'">
+            <span class="result-tile-badge badge ${figure.rarity}">${figure.rarity}</span>
+            <span class="result-tile-status">${getDuplicatePointLabel(meta)}</span>
+          </div>`;
+      }).join('');
+      const totalHtml = Object.keys(totals).length
+        ? Object.keys(totals).map(seriesId => `今回獲得した${getSeriesLabel(seriesId)}交換pt：＋${totals[seriesId]}pt`).join('<br>')
+        : '今回獲得した交換pt：＋0pt';
+      resultStage.innerHTML = `<div class="result-grid">${html}<div class="multi-exchange-total">${totalHtml}</div></div>`;
+      resultModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+    async function spinGacha() {
+      if (spinning || exchangeProcessing || !collectionReady || !getDrawTargetFigures().length) return;
+      spinning = true;
+      updateSeriesControls();
+      spinBtn.disabled = true;
+      if (multiSpinBtn) multiSpinBtn.disabled = true;
+      spinBtn.textContent = 'pt確認中...';
+
+      try {
+        const pointResult = await consumePointBeforeGacha();
+        if (!pointResult.ok) return;
+
+        spinBtn.textContent = '抽選中...';
+        machineTop.classList.add('spinning');
+        handleWrap.classList.add('spinning');
+        resultModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・1回ガチャ抽選中`, 'カプセルを取り出しています');
+
+        await new Promise(resolve => setTimeout(resolve, 1400));
+        const result = weightedDraw(getDrawTargetFigures());
+        const savedResult = await saveGachaResultToServer(result, createClientRequestId('draw1'));
+
+        if (savedResult && savedResult.ok) {
+          applyServerCollection(savedResult);
+          renderResult(result, Array.isArray(savedResult.drawResults) ? savedResult.drawResults[0] : null);
+        } else {
+          console.warn('saveGachaResult failed:', savedResult);
+          const refundResult = await refundPointsAfterFailedSave(1);
+          if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
+          resultStage.innerHTML = '<div class="placeholder">保存に失敗したため、消費ptを返却しました。</div>';
+          alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
+        }
+      } catch (err) {
+        console.error('ガチャ処理中のエラー:', err);
+        alert('ガチャ処理中にエラーが発生しました。');
+      } finally {
+        machineTop.classList.remove('spinning');
+        handleWrap.classList.remove('spinning');
+        spinBtn.disabled = false;
+        spinBtn.textContent = '1回引く';
+        spinning = false;
+        updateSeriesControls();
+      }
+    }
+    async function spinMultiGacha() {
+      if (spinning || exchangeProcessing || !collectionReady || !getDrawTargetFigures().length) return;
+      const availablePoints = Number(latestNewsPoints || 0);
+      const drawCount = Math.min(10, Math.max(0, Math.floor(availablePoints)));
+      if (drawCount <= 0) {
+        alert('ptが不足しています。');
+        return;
+      }
+
+      spinning = true;
+      updateSeriesControls();
+      if (spinBtn) spinBtn.disabled = true;
+      if (multiSpinBtn) {
+        multiSpinBtn.disabled = true;
+        multiSpinBtn.textContent = 'pt確認中...';
+      }
+
+      try {
+        const pointResult = await consumePointsBeforeMultiGacha(drawCount);
+        if (!pointResult.ok) return;
+        const actualDrawCount = Number(pointResult.drawCount || drawCount);
+
+        if (multiSpinBtn) multiSpinBtn.textContent = `${actualDrawCount}連抽選中...`;
+        machineTop.classList.add('spinning');
+        handleWrap.classList.add('spinning');
+        resultModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・${actualDrawCount}連ガチャ抽選中`, 'まとめてカプセルを準備しています');
+
+        await new Promise(resolve => setTimeout(resolve, 1400));
+        const results = drawMultipleFigures(actualDrawCount);
+        const savedResult = await saveGachaResultsToServer(results, createClientRequestId('drawN'));
+
+        if (savedResult && savedResult.ok) {
+          applyServerCollection(savedResult);
+          renderMultiResult(results, savedResult.drawResults || []);
+        } else {
+          console.warn('saveGachaResults failed:', savedResult);
+          const refundResult = await refundPointsAfterFailedSave(results.length);
+          if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
+          resultStage.innerHTML = '<div class="placeholder">保存に失敗したため、消費ptを返却しました。</div>';
+          alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
+        }
+      } catch (err) {
+        console.error('10連ガチャ処理中のエラー:', err);
+        alert('10連ガチャ処理中にエラーが発生しました。');
+      } finally {
+        machineTop.classList.remove('spinning');
+        handleWrap.classList.remove('spinning');
+        spinning = false;
+        if (spinBtn) spinBtn.disabled = false;
+        updateSeriesControls();
+      }
+    }
+
+    function showBackToNewsOverlay() {
+      const overlay = document.getElementById('backToNewsOverlay');
+      if (!overlay) return;
+      overlay.classList.add('is-open');
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function getSafeReturnUrl() {
+      const raw = String(returnUrl || '').trim();
+      if (!raw) return DEFAULT_NEWS_SITE_URL;
+      try {
+        const url = new URL(raw, window.location.href);
+        const allowedOrigins = [
+          'https://araragi0040-jpg.github.io/community-news-pwa/',
+          window.location.origin
+        ];
+        if (allowedOrigins.includes(url.origin)) return url.toString();
+        return DEFAULT_NEWS_SITE_URL;
+      } catch (_err) {
+        return DEFAULT_NEWS_SITE_URL;
+      }
+    }
+
+    function backToNewsSite() {
+      showBackToNewsOverlay();
+      const url = getSafeReturnUrl();
+      setTimeout(() => {
+        window.location.href = url;
+      }, 450);
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!isAdmin && btn.dataset.tab === 'rates') return;
+        activeTab = btn.dataset.tab;
+        renderTab();
+      });
+    });
+
+    document.querySelectorAll('.nav-btn[data-page]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const pageId = btn.dataset.page;
+
+    document.querySelectorAll('.nav-btn[data-page]').forEach(b => {
+      b.classList.toggle('active', b === btn);
+    });
+
+    document.querySelectorAll('.page').forEach(page => {
+      page.classList.toggle('active', page.id === pageId);
+    });
+
+    // ガチャ・コレクション切替時も共通のスマホ外枠を維持し、比率のずれを防ぐ。
+    document.body.classList.add('is-gacha-page');
+  });
+});
+
+    const collectionImageModalClose = document.getElementById("collectionImageModalClose");
+    const collectionImageModalScrim = document.getElementById("collectionImageModalScrim");
+    if (collectionImageModalClose) collectionImageModalClose.addEventListener("click", closeCollectionImageModal);
+    if (collectionImageModalScrim) collectionImageModalScrim.addEventListener("click", closeCollectionImageModal);
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && document.getElementById("collectionImageModal")?.classList.contains("is-open")) {
+        closeCollectionImageModal();
+      }
+    });
+
+    closeModalBtn.addEventListener('click', () => {
+      resultModal.style.display = 'none';
+      document.body.style.overflow = '';
+    });
+
+    resultModal.addEventListener('click', (e) => {
+      if (e.target === resultModal) {
+        resultModal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+    });
+
+    spinBtn.addEventListener('click', spinGacha);
+    if (multiSpinBtn) multiSpinBtn.addEventListener('click', spinMultiGacha);
+    if (backToNewsBtn) backToNewsBtn.addEventListener('click', backToNewsSite);
+
+    renderTab();
+    updateSeriesControls();
+
+    loadNewsPointsForGacha().catch(err => {
+      console.error('pt表示の取得に失敗しました:', err);
+    });
+
+    loadGachaCollectionFromServer().catch(err => {
+      console.error('コレクション履歴の取得に失敗しました:', err);
+    });
+  </script>
+</body>
+</html>
