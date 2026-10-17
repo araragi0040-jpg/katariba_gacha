@@ -17,6 +17,7 @@
     const sources = { ...DEFAULT_VIDEO_SOURCES, ...options.sources };
     const schedule = options.setTimeout || root.setTimeout;
     const cancel = options.clearTimeout || root.clearTimeout;
+    const now = options.now || (() => root.performance ? root.performance.now() : Date.now());
     let active = null;
 
     function prepare(kind, title) {
@@ -87,6 +88,9 @@
 
       let started = false;
       let progress = 0;
+      let completedProgress = 0;
+      let progressTimer;
+      let lastProgressAt = now();
       let settled = false;
       let disposed = false;
       let resolveDone;
@@ -102,6 +106,7 @@
         if (settled || disposed) return;
         settled = true;
         cancel(timeout);
+        cancel(progressTimer);
         video.pause();
         replay.hidden = true;
         skip.hidden = true;
@@ -117,6 +122,7 @@
         settle("closed");
         disposed = true;
         cancel(timeout);
+        cancel(progressTimer);
         handlers.forEach(remove => remove());
         video.pause();
         video.removeAttribute("src");
@@ -147,7 +153,9 @@
 
       function start() {
         if (started || disposed || settled) return;
-        updateProgress(100, true);
+        cancel(progressTimer);
+        progress = 100;
+        renderProgress();
         started = true;
         overlay.classList.remove("is-preparing");
         overlay.classList.add("is-starting");
@@ -158,16 +166,31 @@
         skip.focus();
         attemptPlayback();
       }
-      // Server work has no byte-level progress API: advance only on completed stages.
-      function updateProgress(value, ready = false) {
-        if (disposed || settled || (started && !ready)) return;
+      function renderProgress() {
+        const percent = Math.floor(progress);
+        loadingPercent.textContent = `${percent}%`;
+        loadingFill.style.width = `${percent}%`;
+        loadingTrack.setAttribute("aria-valuenow", String(percent));
+        loadingTrack.setAttribute("aria-valuetext", `準備状況の目安 ${percent}%`);
+      }
+      // Estimated progress within the current stage; never claim the next stage
+      // has finished or delay a ready result just to complete an animation.
+      function animateProgress() {
+        if (disposed || settled || started) return;
+        const timestamp = now();
+        const elapsed = Math.min(0.5, Math.max(0, (timestamp - lastProgressAt) / 1000));
+        lastProgressAt = timestamp;
+        const limit = completedProgress >= 95 ? 99 : completedProgress >= 80 ? 94 : completedProgress >= 40 ? 79 : completedProgress >= 25 ? 39 : 24;
+        const speed = progress < completedProgress ? 12 : Math.max(0.2, (limit - progress) * 0.12);
+        progress = Math.min(limit, progress + speed * elapsed);
+        renderProgress();
+        progressTimer = schedule(animateProgress, 120);
+      }
+      function updateProgress(value) {
+        if (disposed || settled || started) return;
         const number = Number(value);
         if (!Number.isFinite(number)) return;
-        progress = Math.max(progress, Math.min(ready ? 100 : 95, Math.max(0, Math.round(number))));
-        loadingPercent.textContent = `${progress}%`;
-        loadingFill.style.width = `${progress}%`;
-        loadingTrack.setAttribute("aria-valuenow", String(progress));
-        loadingTrack.setAttribute("aria-valuetext", `準備工程の完了率 ${progress}%`);
+        completedProgress = Math.max(completedProgress, Math.min(95, Math.max(0, Math.round(number))));
       }
       const controller = { done, finish, start,
         setProgress: value => updateProgress(value),
@@ -209,7 +232,7 @@
           }
         }
       });
-      // A missing or stalled file must not leave a paid draw waiting indefinitely.
+      progressTimer = schedule(animateProgress, 120);
       return controller;
     }
 
