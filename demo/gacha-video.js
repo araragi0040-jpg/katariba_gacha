@@ -64,13 +64,29 @@
       media.append(video, replay);
       footer.append(status, sound);
       panel.append(toolbar, media, footer);
-      overlay.append(panel);
+      const loading = element("div", "gacha-cinematic-loading");
+      const loadingLabel = element("div", "gacha-cinematic-loading-label");
+      const loadingText = element("span", "", "Now Loading");
+      const loadingPercent = element("span", "gacha-cinematic-loading-percent", "0%");
+      const loadingTrack = element("div", "gacha-cinematic-loading-track");
+      loadingTrack.setAttribute("role", "progressbar");
+      loadingTrack.setAttribute("aria-label", "ガチャの準備");
+      loadingTrack.setAttribute("aria-valuemin", "0");
+      loadingTrack.setAttribute("aria-valuemax", "100");
+      loadingTrack.setAttribute("aria-valuenow", "0");
+      const loadingFill = element("div", "gacha-cinematic-loading-fill");
+      loadingFill.style.width = "0%";
+      loadingLabel.append(loadingText, loadingPercent);
+      loadingTrack.append(loadingFill);
+      loading.append(loadingLabel, loadingTrack);
+      overlay.append(panel, loading);
       doc.body.append(overlay);
       overlay.classList.add("is-preparing");
       overlay.tabIndex = -1;
       overlay.focus();
 
       let started = false;
+      let progress = 0;
       let settled = false;
       let disposed = false;
       let resolveDone;
@@ -90,6 +106,7 @@
         replay.hidden = true;
         skip.hidden = true;
         sound.disabled = true;
+        loading.hidden = true;
         overlay.classList.add("is-waiting");
         status.textContent = "結果を表示します…";
         resolveDone(reason);
@@ -130,17 +147,30 @@
 
       function start() {
         if (started || disposed || settled) return;
+        updateProgress(100, true);
         started = true;
         overlay.classList.remove("is-preparing");
+        overlay.classList.add("is-starting");
         media.hidden = false;
         skip.hidden = false;
-        sound.hidden = false;
         status.textContent = "動画を読み込んでいます…";
         timeout = schedule(() => settle("timeout"), 45000);
         skip.focus();
         attemptPlayback();
       }
+      // Server work has no byte-level progress API: advance only on completed stages.
+      function updateProgress(value, ready = false) {
+        if (disposed || settled || (started && !ready)) return;
+        const number = Number(value);
+        if (!Number.isFinite(number)) return;
+        progress = Math.max(progress, Math.min(ready ? 100 : 95, Math.max(0, Math.round(number))));
+        loadingPercent.textContent = `${progress}%`;
+        loadingFill.style.width = `${progress}%`;
+        loadingTrack.setAttribute("aria-valuenow", String(progress));
+        loadingTrack.setAttribute("aria-valuetext", `準備工程の完了率 ${progress}%`);
+      }
       const controller = { done, finish, start,
+        setProgress: value => updateProgress(value),
         skip: () => { if (started) settle("skipped"); },
         setStatus(text) { if (!started && !disposed) status.textContent = text; },
         setTitle(text) { heading.textContent = text; } };
@@ -155,7 +185,12 @@
       listen(video, "ended", () => settle("ended"));
       listen(video, "error", () => settle("error"));
       listen(video, "playing", () => {
-        if (!settled) status.textContent = "動画の終了後に結果を表示します。";
+        if (!settled && started) {
+          loading.hidden = true;
+          sound.hidden = false;
+          overlay.classList.remove("is-starting");
+          status.textContent = "動画の終了後に結果を表示します。";
+        }
       });
       listen(video, "waiting", () => {
         if (!settled) status.textContent = "動画を読み込み中です。スキップもできます。";
