@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>語り場ガチャ</title>
+  <link rel="stylesheet" href="./gacha-video.css?v=4">
   <style>
     * { box-sizing: border-box; }
 
@@ -1473,6 +1474,7 @@
     </div>
   </div>
 
+  <script src="./gacha-video.js?v=4"></script>
   <script>
     const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbzyL-rkQTcM_GijeBRHFZT3vfsv58xkQIZFAI6PPPC8IFQ50OB62DJrriiWjOLMyZAE/exec";
     const DEFAULT_NEWS_SITE_URL = "https://community-news-pwa.vercel.app/";
@@ -2072,6 +2074,8 @@
     const collectionTabs = document.getElementById('collectionTabs');
     const multiSpinBtn = document.getElementById('multiSpinBtn');
     const backToNewsBtn = document.getElementById('backToNewsBtn');
+    const gachaVideoPlayer = createGachaVideoPlayer();
+    window.addEventListener('pagehide', () => gachaVideoPlayer.stop());
 
     if (isAdmin && collectionTabs) collectionTabs.style.display = 'inline-grid';
 
@@ -2284,9 +2288,13 @@
       if (multiSpinBtn) multiSpinBtn.disabled = true;
       spinBtn.textContent = 'pt確認中...';
 
+      let cinematic;
       try {
+        cinematic = gachaVideoPlayer.prepare('single', `${getSeriesLabel(selectedSeriesId)}・1回ガチャ`);
+        cinematic.setStatus('ポイントを確認しています…');
         const pointResult = await consumePointBeforeGacha();
         if (!pointResult.ok) return;
+        cinematic.setProgress(25);
 
         spinBtn.textContent = '抽選中...';
         machineTop.classList.add('spinning');
@@ -2295,14 +2303,23 @@
         document.body.style.overflow = 'hidden';
         renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・1回ガチャ抽選中`, 'カプセルを取り出しています');
 
-        await new Promise(resolve => setTimeout(resolve, 1400));
         const result = weightedDraw(getDrawTargetFigures());
+        const imagesReady = preloadGachaImages([assetUrl(result.image)]);
+        cinematic.setProgress(40);
+        cinematic.setStatus('抽選結果を保存しています…');
         const savedResult = await saveGachaResultToServer(result, createClientRequestId('draw1'));
 
         if (savedResult && savedResult.ok) {
+          cinematic.setProgress(80);
           applyServerCollection(savedResult);
+          cinematic.setStatus('結果画像を読み込んでいます…');
+          await imagesReady;
+          cinematic.setProgress(95);
           renderResult(result, Array.isArray(savedResult.drawResults) ? savedResult.drawResults[0] : null);
+          cinematic.start();
+          await cinematic.done;
         } else {
+          cinematic.finish();
           console.warn('saveGachaResult failed:', savedResult);
           const refundResult = await refundPointsAfterFailedSave(1);
           if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
@@ -2313,6 +2330,7 @@
         console.error('ガチャ処理中のエラー:', err);
         alert('ガチャ処理中にエラーが発生しました。');
       } finally {
+        if (cinematic) cinematic.finish();
         machineTop.classList.remove('spinning');
         handleWrap.classList.remove('spinning');
         spinBtn.disabled = false;
@@ -2338,10 +2356,15 @@
         multiSpinBtn.textContent = 'pt確認中...';
       }
 
+      let cinematic;
       try {
+        cinematic = gachaVideoPlayer.prepare('multi', `${getSeriesLabel(selectedSeriesId)}・${drawCount}連ガチャ`);
+        cinematic.setStatus('ポイントを確認しています…');
         const pointResult = await consumePointsBeforeMultiGacha(drawCount);
         if (!pointResult.ok) return;
+        cinematic.setProgress(25);
         const actualDrawCount = Number(pointResult.drawCount || drawCount);
+        cinematic.setTitle(`${getSeriesLabel(selectedSeriesId)}・${actualDrawCount}連ガチャ`);
 
         if (multiSpinBtn) multiSpinBtn.textContent = `${actualDrawCount}連抽選中...`;
         machineTop.classList.add('spinning');
@@ -2350,14 +2373,23 @@
         document.body.style.overflow = 'hidden';
         renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・${actualDrawCount}連ガチャ抽選中`, 'まとめてカプセルを準備しています');
 
-        await new Promise(resolve => setTimeout(resolve, 1400));
         const results = drawMultipleFigures(actualDrawCount);
+        const imagesReady = preloadGachaImages(results.map(figure => assetUrl(figure.image)));
+        cinematic.setProgress(40);
+        cinematic.setStatus('抽選結果を保存しています…');
         const savedResult = await saveGachaResultsToServer(results, createClientRequestId('drawN'));
 
         if (savedResult && savedResult.ok) {
+          cinematic.setProgress(80);
           applyServerCollection(savedResult);
+          cinematic.setStatus('結果画像を読み込んでいます…');
+          await imagesReady;
+          cinematic.setProgress(95);
           renderMultiResult(results, savedResult.drawResults || []);
+          cinematic.start();
+          await cinematic.done;
         } else {
+          cinematic.finish();
           console.warn('saveGachaResults failed:', savedResult);
           const refundResult = await refundPointsAfterFailedSave(results.length);
           if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
@@ -2365,9 +2397,10 @@
           alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
         }
       } catch (err) {
-        console.error('10連ガチャ処理中のエラー:', err);
-        alert('10連ガチャ処理中にエラーが発生しました。');
+        console.error('連続ガチャ処理中のエラー:', err);
+        alert('連続ガチャ処理中にエラーが発生しました。');
       } finally {
+        if (cinematic) cinematic.finish();
         machineTop.classList.remove('spinning');
         handleWrap.classList.remove('spinning');
         spinning = false;
@@ -2443,11 +2476,13 @@
     });
 
     closeModalBtn.addEventListener('click', () => {
+      if (spinning) return;
       resultModal.style.display = 'none';
       document.body.style.overflow = '';
     });
 
     resultModal.addEventListener('click', (e) => {
+      if (spinning) return;
       if (e.target === resultModal) {
         resultModal.style.display = 'none';
         document.body.style.overflow = '';
@@ -2471,3 +2506,4 @@
   </script>
 </body>
 </html>
+
