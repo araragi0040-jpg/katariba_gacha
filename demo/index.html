@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>語り場ガチャ</title>
+  <link rel="stylesheet" href="./gacha-video.css?v=1">
   <style>
     * { box-sizing: border-box; }
 
@@ -1473,6 +1474,7 @@
     </div>
   </div>
 
+  <script src="./gacha-video.js?v=1"></script>
   <script>
     const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
     const DEFAULT_NEWS_SITE_URL = "https://araragi0040-jpg.github.io/community-news-pwa/demo/";
@@ -2072,6 +2074,8 @@
     const collectionTabs = document.getElementById('collectionTabs');
     const multiSpinBtn = document.getElementById('multiSpinBtn');
     const backToNewsBtn = document.getElementById('backToNewsBtn');
+    const gachaVideoPlayer = createGachaVideoPlayer();
+    window.addEventListener('pagehide', () => gachaVideoPlayer.stop());
 
     if (isAdmin && collectionTabs) collectionTabs.style.display = 'inline-grid';
 
@@ -2284,7 +2288,9 @@
       if (multiSpinBtn) multiSpinBtn.disabled = true;
       spinBtn.textContent = 'pt確認中...';
 
+      let cinematic;
       try {
+        cinematic = gachaVideoPlayer.play('single', `${getSeriesLabel(selectedSeriesId)}・1回ガチャ`);
         const pointResult = await consumePointBeforeGacha();
         if (!pointResult.ok) return;
 
@@ -2295,14 +2301,15 @@
         document.body.style.overflow = 'hidden';
         renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・1回ガチャ抽選中`, 'カプセルを取り出しています');
 
-        await new Promise(resolve => setTimeout(resolve, 1400));
         const result = weightedDraw(getDrawTargetFigures());
         const savedResult = await saveGachaResultToServer(result, createClientRequestId('draw1'));
 
         if (savedResult && savedResult.ok) {
           applyServerCollection(savedResult);
+          await cinematic.done;
           renderResult(result, Array.isArray(savedResult.drawResults) ? savedResult.drawResults[0] : null);
         } else {
+          cinematic.finish();
           console.warn('saveGachaResult failed:', savedResult);
           const refundResult = await refundPointsAfterFailedSave(1);
           if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
@@ -2313,6 +2320,7 @@
         console.error('ガチャ処理中のエラー:', err);
         alert('ガチャ処理中にエラーが発生しました。');
       } finally {
+        if (cinematic) cinematic.finish();
         machineTop.classList.remove('spinning');
         handleWrap.classList.remove('spinning');
         spinBtn.disabled = false;
@@ -2338,10 +2346,13 @@
         multiSpinBtn.textContent = 'pt確認中...';
       }
 
+      let cinematic;
       try {
+        cinematic = gachaVideoPlayer.play('multi', `${getSeriesLabel(selectedSeriesId)}・${drawCount}連ガチャ`);
         const pointResult = await consumePointsBeforeMultiGacha(drawCount);
         if (!pointResult.ok) return;
         const actualDrawCount = Number(pointResult.drawCount || drawCount);
+        cinematic.setTitle(`${getSeriesLabel(selectedSeriesId)}・${actualDrawCount}連ガチャ`);
 
         if (multiSpinBtn) multiSpinBtn.textContent = `${actualDrawCount}連抽選中...`;
         machineTop.classList.add('spinning');
@@ -2350,14 +2361,15 @@
         document.body.style.overflow = 'hidden';
         renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・${actualDrawCount}連ガチャ抽選中`, 'まとめてカプセルを準備しています');
 
-        await new Promise(resolve => setTimeout(resolve, 1400));
         const results = drawMultipleFigures(actualDrawCount);
         const savedResult = await saveGachaResultsToServer(results, createClientRequestId('drawN'));
 
         if (savedResult && savedResult.ok) {
           applyServerCollection(savedResult);
+          await cinematic.done;
           renderMultiResult(results, savedResult.drawResults || []);
         } else {
+          cinematic.finish();
           console.warn('saveGachaResults failed:', savedResult);
           const refundResult = await refundPointsAfterFailedSave(results.length);
           if (!refundResult || !refundResult.ok) console.warn('refundGachaPoints failed:', refundResult);
@@ -2365,9 +2377,10 @@
           alert('ガチャ結果のサーバー保存に失敗したため、消費ptを返却しました。');
         }
       } catch (err) {
-        console.error('10連ガチャ処理中のエラー:', err);
-        alert('10連ガチャ処理中にエラーが発生しました。');
+        console.error('連続ガチャ処理中のエラー:', err);
+        alert('連続ガチャ処理中にエラーが発生しました。');
       } finally {
+        if (cinematic) cinematic.finish();
         machineTop.classList.remove('spinning');
         handleWrap.classList.remove('spinning');
         spinning = false;
@@ -2443,11 +2456,13 @@
     });
 
     closeModalBtn.addEventListener('click', () => {
+      if (spinning) return;
       resultModal.style.display = 'none';
       document.body.style.overflow = '';
     });
 
     resultModal.addEventListener('click', (e) => {
+      if (spinning) return;
       if (e.target === resultModal) {
         resultModal.style.display = 'none';
         document.body.style.overflow = '';
@@ -2471,3 +2486,4 @@
   </script>
 </body>
 </html>
+
