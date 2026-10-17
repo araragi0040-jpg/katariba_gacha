@@ -1,7 +1,10 @@
 (function(root, factory) {
   const api = factory(root);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.createGachaVideoPlayer = api.createGachaVideoPlayer;
+  else {
+    root.createGachaVideoPlayer = api.createGachaVideoPlayer;
+    root.preloadGachaImages = api.preloadGachaImages;
+  }
 })(globalThis, function(root) {
   "use strict";
   const DEFAULT_VIDEO_SOURCES = {
@@ -16,7 +19,7 @@
     const cancel = options.clearTimeout || root.clearTimeout;
     let active = null;
 
-    function play(kind, title) {
+    function prepare(kind, title) {
       if (active) active.finish();
       const element = (tag, className, text) => {
         const node = doc.createElement(tag);
@@ -35,7 +38,9 @@
       heading.id = "gacha-cinematic-heading";
       const skip = element("button", "gacha-cinematic-skip", "スキップ →");
       skip.type = "button";
+      skip.hidden = true;
       const media = element("div", "gacha-cinematic-media");
+      media.hidden = true;
       const video = element("video", "gacha-cinematic-video");
       video.src = sources[kind] || sources.single;
       video.preload = "auto";
@@ -48,11 +53,12 @@
       replay.type = "button";
       replay.hidden = true;
       const footer = element("div", "gacha-cinematic-footer");
-      const status = element("div", "gacha-cinematic-status", "動画を読み込んでいます…");
+      const status = element("div", "gacha-cinematic-status", "抽選結果を準備しています…");
       status.setAttribute("role", "status");
       status.setAttribute("aria-live", "polite");
       const sound = element("button", "gacha-cinematic-sound", "音声をオフ");
       sound.type = "button";
+      sound.hidden = true;
       sound.setAttribute("aria-label", "音声をオフにする");
       toolbar.append(heading, skip);
       media.append(video, replay);
@@ -60,7 +66,11 @@
       panel.append(toolbar, media, footer);
       overlay.append(panel);
       doc.body.append(overlay);
+      overlay.classList.add("is-preparing");
+      overlay.tabIndex = -1;
+      overlay.focus();
 
+      let started = false;
       let settled = false;
       let disposed = false;
       let resolveDone;
@@ -81,7 +91,7 @@
         skip.hidden = true;
         sound.disabled = true;
         overlay.classList.add("is-waiting");
-        status.textContent = "結果を準備しています…";
+        status.textContent = "結果を表示します…";
         resolveDone(reason);
       }
 
@@ -105,7 +115,7 @@
         video.muted = false;
         sound.textContent = "音声をオフ";
         sound.setAttribute("aria-label", "音声をオフにする");
-        // Invoked synchronously from the draw click, before any API await.
+        // Results are already saved; browsers may require the explicit replay button.
         try {
           Promise.resolve(video.play()).catch(error => {
             if (disposed || settled) return;
@@ -118,7 +128,22 @@
         } catch (_) { settle("error"); }
       }
 
-      const controller = { done, finish, skip: () => settle("skipped"), setTitle(text) { heading.textContent = text; } };
+      function start() {
+        if (started || disposed || settled) return;
+        started = true;
+        overlay.classList.remove("is-preparing");
+        media.hidden = false;
+        skip.hidden = false;
+        sound.hidden = false;
+        status.textContent = "動画を読み込んでいます…";
+        timeout = schedule(() => settle("timeout"), 45000);
+        skip.focus();
+        attemptPlayback();
+      }
+      const controller = { done, finish, start,
+        skip: () => { if (started) settle("skipped"); },
+        setStatus(text) { if (!started && !disposed) status.textContent = text; },
+        setTitle(text) { heading.textContent = text; } };
       active = controller;
       listen(skip, "click", controller.skip);
       listen(replay, "click", attemptPlayback);
@@ -150,13 +175,40 @@
         }
       });
       // A missing or stalled file must not leave a paid draw waiting indefinitely.
-      timeout = schedule(() => settle("timeout"), 45000);
-      skip.focus();
-      attemptPlayback();
       return controller;
     }
 
-    return { play, stop() { if (active) active.finish(); } };
+    return { prepare,
+      play(kind, title) { const controller = prepare(kind, title); controller.start(); return controller; },
+      stop() { if (active) active.finish(); } };
   }
-  return { createGachaVideoPlayer, DEFAULT_VIDEO_SOURCES };
+
+  // Warm just the selected result images while the server saves the draw.
+  // Failed or slow images must not prevent a saved result from being shown.
+  const imageLoads = new Map();
+  function preloadGachaImages(urls, options = {}) {
+    const ImageType = options.Image || root.Image;
+    const schedule = options.setTimeout || root.setTimeout;
+    const cancel = options.clearTimeout || root.clearTimeout;
+    if (!ImageType) return Promise.resolve();
+    return Promise.all([...new Set(urls.filter(Boolean))].map(url => {
+      if (imageLoads.has(url)) return imageLoads.get(url);
+      const loading = new Promise(resolve => {
+        const img = new ImageType();
+        let settled = false, timer;
+        const finish = loaded => {
+          if (settled) return;
+          settled = true; cancel(timer); img.onload = null; img.onerror = null;
+          resolve(loaded);
+        };
+        img.onload = () => finish(true);
+        img.onerror = () => finish(false);
+        timer = schedule(() => finish(false), options.timeoutMs ?? 2000);
+        img.src = url;
+      }).then(loaded => { if (!loaded) imageLoads.delete(url); });
+      imageLoads.set(url, loading);
+      return loading;
+    }));
+  }
+  return { createGachaVideoPlayer, preloadGachaImages, DEFAULT_VIDEO_SOURCES };
 });

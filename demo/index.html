@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>語り場ガチャ</title>
-  <link rel="stylesheet" href="./gacha-video.css?v=1">
+  <link rel="stylesheet" href="./gacha-video.css?v=2">
   <style>
     * { box-sizing: border-box; }
 
@@ -1474,7 +1474,7 @@
     </div>
   </div>
 
-  <script src="./gacha-video.js?v=1"></script>
+  <script src="./gacha-video.js?v=2"></script>
   <script>
     const NEWS_API_URL = "https://script.google.com/macros/s/AKfycbw7YwgTW-iau9Ep6tkJYeyMfuS3QugXueWF292eFDECxv_3VDphY837DLTxxkZIkfoSxg/exec";
     const DEFAULT_NEWS_SITE_URL = "https://araragi0040-jpg.github.io/community-news-pwa/demo/";
@@ -2290,7 +2290,8 @@
 
       let cinematic;
       try {
-        cinematic = gachaVideoPlayer.play('single', `${getSeriesLabel(selectedSeriesId)}・1回ガチャ`);
+        cinematic = gachaVideoPlayer.prepare('single', `${getSeriesLabel(selectedSeriesId)}・1回ガチャ`);
+        cinematic.setStatus('ポイントを確認しています…');
         const pointResult = await consumePointBeforeGacha();
         if (!pointResult.ok) return;
 
@@ -2302,12 +2303,17 @@
         renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・1回ガチャ抽選中`, 'カプセルを取り出しています');
 
         const result = weightedDraw(getDrawTargetFigures());
+        const imagesReady = preloadGachaImages([assetUrl(result.image)]);
+        cinematic.setStatus('抽選結果を保存しています…');
         const savedResult = await saveGachaResultToServer(result, createClientRequestId('draw1'));
 
         if (savedResult && savedResult.ok) {
           applyServerCollection(savedResult);
-          await cinematic.done;
+          cinematic.setStatus('結果画像を読み込んでいます…');
+          await imagesReady;
           renderResult(result, Array.isArray(savedResult.drawResults) ? savedResult.drawResults[0] : null);
+          cinematic.start();
+          await cinematic.done;
         } else {
           cinematic.finish();
           console.warn('saveGachaResult failed:', savedResult);
@@ -2348,7 +2354,8 @@
 
       let cinematic;
       try {
-        cinematic = gachaVideoPlayer.play('multi', `${getSeriesLabel(selectedSeriesId)}・${drawCount}連ガチャ`);
+        cinematic = gachaVideoPlayer.prepare('multi', `${getSeriesLabel(selectedSeriesId)}・${drawCount}連ガチャ`);
+        cinematic.setStatus('ポイントを確認しています…');
         const pointResult = await consumePointsBeforeMultiGacha(drawCount);
         if (!pointResult.ok) return;
         const actualDrawCount = Number(pointResult.drawCount || drawCount);
@@ -2362,12 +2369,17 @@
         renderGachaLoadingAnimation(`${getSeriesLabel(selectedSeriesId)}・${actualDrawCount}連ガチャ抽選中`, 'まとめてカプセルを準備しています');
 
         const results = drawMultipleFigures(actualDrawCount);
+        const imagesReady = preloadGachaImages(results.map(figure => assetUrl(figure.image)));
+        cinematic.setStatus('抽選結果を保存しています…');
         const savedResult = await saveGachaResultsToServer(results, createClientRequestId('drawN'));
 
         if (savedResult && savedResult.ok) {
           applyServerCollection(savedResult);
-          await cinematic.done;
+          cinematic.setStatus('結果画像を読み込んでいます…');
+          await imagesReady;
           renderMultiResult(results, savedResult.drawResults || []);
+          cinematic.start();
+          await cinematic.done;
         } else {
           cinematic.finish();
           console.warn('saveGachaResults failed:', savedResult);
